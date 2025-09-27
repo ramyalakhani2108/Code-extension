@@ -1,0 +1,132 @@
+{
+  "name": "todo-task",
+  "displayName": "Todo Task Reminder",
+  "description": "A VS Code extension for managing todos and task reminders with side panel view",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.104.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "todo-sidebar",
+          "title": "Todo Task Manager",
+          "icon": "$(checklist)"
+        }
+      ]
+    },
+    "views": {
+      "todo-sidebar": [
+        {
+          "id": "todoTreeView",
+          "name": "Todo Tasks",
+          "icon": "$(list-unordered)"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "todoManager.addTodo",
+        "title": "Add Todo",
+        "icon": "$(add)"
+      },
+      {
+        "command": "todoManager.deleteTodo",
+        "title": "Delete Todo",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "todoManager.completeTodo",
+        "title": "Complete Todo",
+        "icon": "$(check)"
+      },
+      {
+        "command": "todoManager.editTodo",
+        "title": "Edit Todo",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "todoManager.setReminder",
+        "title": "Set Reminder",
+        "icon": "$(bell)"
+      },
+      {
+        "command": "todoManager.refreshTodos",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "todoManager.openPanel",
+        "title": "Open Todo Panel",
+        "category": "Todo Manager"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "todoManager.addTodo",
+          "when": "view == todoTreeView",
+          "group": "navigation"
+        },
+        {
+          "command": "todoManager.refreshTodos",
+          "when": "view == todoTreeView",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "todoManager.completeTodo",
+          "when": "view == todoTreeView && viewItem == todoItem",
+          "group": "inline"
+        },
+        {
+          "command": "todoManager.editTodo",
+          "when": "view == todoTreeView && viewItem == todoItem",
+          "group": "inline"
+        },
+        {
+          "command": "todoManager.setReminder",
+          "when": "view == todoTreeView && viewItem == todoItem",
+          "group": "inline"
+        },
+        {
+          "command": "todoManager.deleteTodo",
+          "when": "view == todoTreeView && viewItem == todoItem",
+          "group": "inline"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "webpack",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.104.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "@typescript-eslint/eslint-plugin": "^8.42.0",
+    "@typescript-eslint/parser": "^8.42.0",
+    "eslint": "^9.34.0",
+    "typescript": "^5.9.2",
+    "ts-loader": "^9.5.4",
+    "webpack": "^5.101.3",
+    "webpack-cli": "^6.0.1",
+    "@vscode/test-cli": "^0.0.11",
+    "@vscode/test-electron": "^2.5.2"
+  }
+}
