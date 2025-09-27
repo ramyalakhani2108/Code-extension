@@ -38,7 +38,18 @@ A powerful VS Code extension that helps you manage todos and set task reminders 
 - 📅 **Smart Descriptions** - Contextual due date and priority information
 - 🎪 **Welcome Screen** - Guided onboarding for new users
 
-### 💾 **Advanced Data Management**
+### �️ **Advanced Multi-Level Grouping & Filtering**
+- 🏗️ **3-Level Deep Grouping** - Primary → Secondary → Tertiary organization
+- 📅 **Smart Date Grouping** - Today → This Week → Future with intelligent sorting
+- 🎯 **Status-Based Grouping** - Urgent → Overdue → Active → Completed
+- ⭐ **Priority Grouping** - High → Medium → Low with visual hierarchy
+- 📁 **Project Grouping** - Organize by project with task counts and urgency indicators
+- 🔍 **Advanced Filtering** - Multi-criteria filtering with search functionality
+- ⚡ **Quick Filters** - One-click filters for common views (Today, High Priority, Overdue)
+- 🎨 **Custom Filter Builder** - Step-by-step guided filter creation
+- 💾 **Persistent Settings** - Grouping and filter preferences saved automatically
+
+### �💾 **Advanced Data Management**
 - 📝 **Persistent Task Logging** - Automatic logging to `~/vscode-todo-tasks.txt`
 - 🗂️ **Structured File Format** - Organized by date and project with proper indentation
 - 💾 **Global State Storage** - Secure storage across VS Code sessions
@@ -83,7 +94,27 @@ A powerful VS Code extension that helps you manage todos and set task reminders 
 - **Project Overview**: See task counts and urgency indicators
 - **Cross-Project View**: Switch between project-focused and priority-focused views
 
-### 📝 **Task Logging**
+### �️ **Advanced Grouping & Organization**
+- **Multi-Level Grouping**: Click the 🗂️ **Change Grouping** button in toolbar
+  - **Recommended**: Date → Status → Priority (Recent tasks first)
+  - **Status Focus**: Status → Priority → Project
+  - **Priority Focus**: Priority → Date → Project  
+  - **Project Focus**: Project → Status → Priority
+- **Dynamic Hierarchy**: Up to 3 levels deep with intelligent sorting
+- **Visual Indicators**: Each group shows task counts, urgency, and completion stats
+
+### 🔍 **Advanced Filtering System**
+- **Quick Filters**: Use toolbar buttons for instant filtering
+  - 📅 **Today's Tasks** - Focus on today's work
+  - 🔥 **High Priority** - Show only urgent tasks
+  - ⚠️ **Overdue Tasks** - Catch up on missed deadlines
+- **Advanced Filter Builder**: Click 🔍 **Advanced Filter** for custom combinations
+  - **Multi-Criteria**: Combine status, priority, date range, and project filters
+  - **Search Integration**: Add text search within task names and projects
+  - **Smart Presets**: Common filter combinations with one click
+- **Filter Persistence**: Your filter preferences are automatically saved
+
+### �📝 **Task Logging**
 - **Automatic Logging**: All tasks are logged to `~/vscode-todo-tasks.txt`
 - **Structured Format**: Organized by date and project with proper indentation
 - **Quick Access**: Use "View Task Log" command or detail view button

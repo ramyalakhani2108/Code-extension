@@ -76,6 +76,39 @@
         "command": "todoManager.openTaskDetail",
         "title": "Open Task Details",
         "category": "Todo Manager"
+      },
+      {
+        "command": "todoManager.changeGrouping",
+        "title": "Change Grouping",
+        "category": "Todo Manager",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "todoManager.advancedFilter",
+        "title": "Advanced Filter",
+        "category": "Todo Manager", 
+        "icon": "$(filter)"
+      },
+      {
+        "command": "todoManager.clearFilters",
+        "title": "Clear Filters",
+        "category": "Todo Manager",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "todoManager.filterToday",
+        "title": "Show Today's Tasks",
+        "category": "Todo Manager"
+      },
+      {
+        "command": "todoManager.filterHighPriority", 
+        "title": "Show High Priority",
+        "category": "Todo Manager"
+      },
+      {
+        "command": "todoManager.filterOverdue",
+        "title": "Show Overdue Tasks", 
+        "category": "Todo Manager"
       }
     ],
     "menus": {
@@ -83,17 +116,32 @@
         {
           "command": "todoManager.addTodo",
           "when": "view == todoTreeView",
-          "group": "navigation"
+          "group": "navigation@1"
+        },
+        {
+          "command": "todoManager.changeGrouping",
+          "when": "view == todoTreeView",
+          "group": "navigation@2"
+        },
+        {
+          "command": "todoManager.advancedFilter",
+          "when": "view == todoTreeView",
+          "group": "navigation@3"
+        },
+        {
+          "command": "todoManager.clearFilters",
+          "when": "view == todoTreeView",
+          "group": "navigation@4"
         },
         {
           "command": "todoManager.refreshTodos",
           "when": "view == todoTreeView",
-          "group": "navigation"
+          "group": "navigation@5"
         },
         {
           "command": "todoManager.viewTaskLog",
           "when": "view == todoTreeView",
-          "group": "navigation"
+          "group": "secondary@1"
         }
       ],
       "view/item/context": [
@@ -126,6 +174,31 @@
           "command": "todoManager.viewTaskLog",
           "when": "view == todoTreeView",
           "group": "3_utils@1"
+        },
+        {
+          "command": "todoManager.changeGrouping",
+          "when": "view == todoTreeView",
+          "group": "4_organize@1"
+        },
+        {
+          "command": "todoManager.advancedFilter",
+          "when": "view == todoTreeView",
+          "group": "4_organize@2"
+        },
+        {
+          "command": "todoManager.filterToday",
+          "when": "view == todoTreeView",
+          "group": "5_quickfilter@1"
+        },
+        {
+          "command": "todoManager.filterHighPriority",
+          "when": "view == todoTreeView",
+          "group": "5_quickfilter@2"
+        },
+        {
+          "command": "todoManager.filterOverdue",
+          "when": "view == todoTreeView",
+          "group": "5_quickfilter@3"
         }
       ]
     }

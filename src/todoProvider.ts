@@ -172,22 +172,159 @@ export class TodoTreeItem extends vscode.TreeItem {
     }
 }
 
+export interface GroupingConfig {
+    primary: 'status' | 'priority' | 'project' | 'date';
+    secondary?: 'status' | 'priority' | 'project' | 'date';
+    tertiary?: 'status' | 'priority' | 'project' | 'date';
+}
+
+export interface FilterConfig {
+    status?: ('completed' | 'pending' | 'overdue')[];
+    priority?: ('high' | 'medium' | 'low')[];
+    projects?: string[];
+    dateRange?: 'today' | 'thisWeek' | 'thisMonth' | 'overdue' | 'upcoming' | 'all';
+    searchText?: string;
+}
+
 export class TodoTreeDataProvider implements vscode.TreeDataProvider<TodoTreeItem> {
     private _onDidChangeTreeData: vscode.EventEmitter<TodoTreeItem | undefined | null | void> = new vscode.EventEmitter<TodoTreeItem | undefined | null | void>();
     readonly onDidChangeTreeData: vscode.Event<TodoTreeItem | undefined | null | void> = this._onDidChangeTreeData.event;
 
     private todos: TodoItem[] = [];
     private context: vscode.ExtensionContext;
+    
+    // Advanced grouping and filtering
+    private currentGrouping: GroupingConfig = { primary: 'date', secondary: 'status', tertiary: 'priority' };
+    private currentFilter: FilterConfig = { dateRange: 'all' };
+    private filteredTodos: TodoItem[] = [];
 
     constructor(context: vscode.ExtensionContext) {
         this.context = context;
         this.loadTodos();
+        this.updateFilteredTodos();
         console.log(`📋 TodoTreeDataProvider initialized with ${this.todos.length} todos`);
     }
 
     refresh(): void {
         console.log('🔄 Refreshing todo tree view');
+        this.updateFilteredTodos();
         this._onDidChangeTreeData.fire();
+    }
+
+    // Advanced filtering and grouping methods
+    updateFilteredTodos(): void {
+        this.filteredTodos = this.applyFilters(this.todos);
+        console.log(`🔍 Filtered ${this.filteredTodos.length} todos from ${this.todos.length} total`);
+    }
+
+    private applyFilters(todos: TodoItem[]): TodoItem[] {
+        let filtered = [...todos];
+
+        // Apply status filter
+        if (this.currentFilter.status && this.currentFilter.status.length > 0) {
+            filtered = filtered.filter(todo => {
+                const status = this.getTodoStatus(todo);
+                return this.currentFilter.status!.includes(status);
+            });
+        }
+
+        // Apply priority filter
+        if (this.currentFilter.priority && this.currentFilter.priority.length > 0) {
+            filtered = filtered.filter(todo => 
+                this.currentFilter.priority!.includes(todo.priority)
+            );
+        }
+
+        // Apply project filter
+        if (this.currentFilter.projects && this.currentFilter.projects.length > 0) {
+            filtered = filtered.filter(todo => {
+                const projectName = todo.projectName || 'No Project';
+                return this.currentFilter.projects!.includes(projectName);
+            });
+        }
+
+        // Apply date range filter
+        if (this.currentFilter.dateRange && this.currentFilter.dateRange !== 'all') {
+            filtered = filtered.filter(todo => this.matchesDateRange(todo, this.currentFilter.dateRange!));
+        }
+
+        // Apply search text filter
+        if (this.currentFilter.searchText && this.currentFilter.searchText.trim()) {
+            const searchText = this.currentFilter.searchText.toLowerCase();
+            filtered = filtered.filter(todo => 
+                todo.text.toLowerCase().includes(searchText) ||
+                (todo.projectName && todo.projectName.toLowerCase().includes(searchText))
+            );
+        }
+
+        return filtered;
+    }
+
+    private getTodoStatus(todo: TodoItem): 'completed' | 'pending' | 'overdue' {
+        if (todo.completed) return 'completed';
+        if (todo.dueDate && todo.dueDate < new Date()) return 'overdue';
+        return 'pending';
+    }
+
+    private matchesDateRange(todo: TodoItem, range: string): boolean {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+        const weekStart = new Date(today.getTime() - today.getDay() * 24 * 60 * 60 * 1000);
+        const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+        switch (range) {
+            case 'today':
+                return (todo.dueDate && todo.dueDate >= today && todo.dueDate < tomorrow) ||
+                       (todo.createdAt >= today && todo.createdAt < tomorrow);
+            case 'thisWeek':
+                return (todo.dueDate && todo.dueDate >= weekStart && todo.dueDate < weekEnd) ||
+                       (todo.createdAt >= weekStart && todo.createdAt < weekEnd);
+            case 'thisMonth':
+                return (todo.dueDate && todo.dueDate >= monthStart && todo.dueDate <= monthEnd) ||
+                       (todo.createdAt >= monthStart && todo.createdAt <= monthEnd);
+            case 'overdue':
+                return todo.dueDate ? todo.dueDate < now && !todo.completed : false;
+            case 'upcoming':
+                return todo.dueDate ? todo.dueDate > now : false;
+            default:
+                return true;
+        }
+    }
+
+    // Grouping configuration methods
+    setGrouping(config: GroupingConfig): void {
+        this.currentGrouping = config;
+        this.context.globalState.update('todoGrouping', config);
+        this.refresh();
+    }
+
+    setFilter(config: FilterConfig): void {
+        this.currentFilter = config;
+        this.context.globalState.update('todoFilter', config);
+        this.refresh();
+    }
+
+    getAvailableProjects(): string[] {
+        const projects = new Set<string>();
+        this.todos.forEach(todo => {
+            if (todo.projectName) {
+                projects.add(todo.projectName);
+            } else {
+                projects.add('No Project');
+            }
+        });
+        return Array.from(projects).sort();
+    }
+
+    getCurrentGrouping(): GroupingConfig {
+        return this.currentGrouping;
+    }
+
+    getCurrentFilter(): FilterConfig {
+        return this.currentFilter;
     }
 
     getTreeItem(element: TodoTreeItem): vscode.TreeItem {
@@ -218,56 +355,256 @@ export class TodoTreeDataProvider implements vscode.TreeDataProvider<TodoTreeIte
     private async getRootElements(): Promise<TodoTreeItem[]> {
         const items: TodoTreeItem[] = [];
         
-        // Get pending todos
-        const pendingTodos = this.todos.filter(todo => !todo.completed);
-        const completedTodos = this.todos.filter(todo => todo.completed);
-        
-        // Group by projects if we have any
-        const projectGroups = this.getProjectGroups(pendingTodos);
-        const hasProjects = Object.keys(projectGroups).length > 1 || 
-                           (Object.keys(projectGroups).length === 1 && !projectGroups['']);
-
-        if (hasProjects) {
-            // Add project groups
-            Object.entries(projectGroups).forEach(([projectName, todos]) => {
-                if (todos.length > 0) {
-                    const displayName = projectName || '📝 No Project';
-                    const projectItem = this.createProjectItem(displayName, todos);
-                    items.push(projectItem);
-                }
-            });
-        } else {
-            // No projects - group by status/priority
-            if (pendingTodos.length > 0) {
-                const urgentTodos = pendingTodos.filter(t => this.isUrgent(t));
-                const normalTodos = pendingTodos.filter(t => !this.isUrgent(t));
-                
-                if (urgentTodos.length > 0) {
-                    const urgentGroup = this.createStatusGroup('🔥 Urgent Tasks', urgentTodos, 'urgent');
-                    items.push(urgentGroup);
-                }
-                
-                if (normalTodos.length > 0) {
-                    const normalGroup = this.createStatusGroup('📋 Active Tasks', normalTodos, 'active'); 
-                    items.push(normalGroup);
-                }
-            }
-        }
-        
-        // Add completed group if there are completed todos
-        if (completedTodos.length > 0) {
-            const completedGroup = this.createStatusGroup(`✅ Completed (${completedTodos.length})`, completedTodos, 'completed');
-            items.push(completedGroup);
-        }
-        
         // If no todos at all, show welcome message
         if (this.todos.length === 0) {
             const welcomeItem = this.createWelcomeItem();
             items.push(welcomeItem);
+            return items;
         }
+
+        // Use filtered todos for grouping
+        const todosToGroup = this.filteredTodos;
         
-        console.log(`📋 Returning ${items.length} root elements`);
+        if (todosToGroup.length === 0) {
+            const noResultsItem = this.createNoResultsItem();
+            items.push(noResultsItem);
+            return items;
+        }
+
+        // Apply advanced multi-level grouping
+        const groupedItems = this.createAdvancedGrouping(todosToGroup);
+        items.push(...groupedItems);
+        
+        console.log(`📋 Returning ${items.length} root elements with advanced grouping`);
         return items;
+    }
+
+    private createAdvancedGrouping(todos: TodoItem[]): TodoTreeItem[] {
+        const primaryGroups = this.groupByLevel(todos, this.currentGrouping.primary);
+        const items: TodoTreeItem[] = [];
+
+        // Sort primary groups by priority (today's tasks first)
+        const sortedPrimaryKeys = this.sortGroupKeys(Object.keys(primaryGroups), this.currentGrouping.primary);
+
+        for (const primaryKey of sortedPrimaryKeys) {
+            const primaryTodos = primaryGroups[primaryKey];
+            const primaryItem = this.createGroupItem(primaryKey, this.currentGrouping.primary, primaryTodos);
+
+            // Apply secondary grouping if specified
+            if (this.currentGrouping.secondary) {
+                const secondaryGroups = this.groupByLevel(primaryTodos, this.currentGrouping.secondary);
+                const secondaryItems: TodoTreeItem[] = [];
+
+                const sortedSecondaryKeys = this.sortGroupKeys(Object.keys(secondaryGroups), this.currentGrouping.secondary);
+
+                for (const secondaryKey of sortedSecondaryKeys) {
+                    const secondaryTodos = secondaryGroups[secondaryKey];
+                    const secondaryItem = this.createGroupItem(secondaryKey, this.currentGrouping.secondary, secondaryTodos);
+
+                    // Apply tertiary grouping if specified
+                    if (this.currentGrouping.tertiary) {
+                        const tertiaryGroups = this.groupByLevel(secondaryTodos, this.currentGrouping.tertiary);
+                        const tertiaryItems: TodoTreeItem[] = [];
+
+                        const sortedTertiaryKeys = this.sortGroupKeys(Object.keys(tertiaryGroups), this.currentGrouping.tertiary);
+
+                        for (const tertiaryKey of sortedTertiaryKeys) {
+                            const tertiaryTodos = tertiaryGroups[tertiaryKey];
+                            const tertiaryItem = this.createGroupItem(tertiaryKey, this.currentGrouping.tertiary, tertiaryTodos);
+                            
+                            // Add actual todos at the deepest level
+                            (tertiaryItem as any).groupTodos = this.sortTodos(tertiaryTodos);
+                            tertiaryItems.push(tertiaryItem);
+                        }
+                        (secondaryItem as any).groupChildren = tertiaryItems;
+                    } else {
+                        // Add todos directly to secondary level
+                        (secondaryItem as any).groupTodos = this.sortTodos(secondaryTodos);
+                    }
+                    secondaryItems.push(secondaryItem);
+                }
+                (primaryItem as any).groupChildren = secondaryItems;
+            } else {
+                // Add todos directly to primary level
+                (primaryItem as any).groupTodos = this.sortTodos(primaryTodos);
+            }
+
+            items.push(primaryItem);
+        }
+
+        return items;
+    }
+
+    private groupByLevel(todos: TodoItem[], level: string): { [key: string]: TodoItem[] } {
+        const groups: { [key: string]: TodoItem[] } = {};
+
+        todos.forEach(todo => {
+            let key: string;
+
+            switch (level) {
+                case 'status':
+                    key = this.getStatusGroupKey(todo);
+                    break;
+                case 'priority':
+                    key = this.getPriorityGroupKey(todo);
+                    break;
+                case 'project':
+                    key = this.getProjectGroupKey(todo);
+                    break;
+                case 'date':
+                    key = this.getDateGroupKey(todo);
+                    break;
+                default:
+                    key = 'Other';
+            }
+
+            if (!groups[key]) {
+                groups[key] = [];
+            }
+            groups[key].push(todo);
+        });
+
+        return groups;
+    }
+
+    private getStatusGroupKey(todo: TodoItem): string {
+        if (todo.completed) return '✅ Completed';
+        if (todo.dueDate && todo.dueDate < new Date() && !todo.completed) return '⚠️ Overdue';
+        if (this.isUrgent(todo)) return '🔥 Urgent';
+        return '📋 Active';
+    }
+
+    private getPriorityGroupKey(todo: TodoItem): string {
+        switch (todo.priority) {
+            case 'high': return '🔴 High Priority';
+            case 'medium': return '🟡 Medium Priority';
+            case 'low': return '⚪ Low Priority';
+            default: return '⚪ Low Priority';
+        }
+    }
+
+    private getProjectGroupKey(todo: TodoItem): string {
+        return todo.projectName ? `📁 ${todo.projectName}` : '📝 No Project';
+    }
+
+    private getDateGroupKey(todo: TodoItem): string {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+        const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+        const thisWeekStart = new Date(today.getTime() - today.getDay() * 24 * 60 * 60 * 1000);
+        const nextWeekStart = new Date(thisWeekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+        // Use due date if available, otherwise use created date
+        const compareDate = todo.dueDate || todo.createdAt;
+
+        if (compareDate >= today && compareDate < tomorrow) {
+            return '📅 Today';
+        } else if (compareDate >= tomorrow && compareDate < new Date(tomorrow.getTime() + 24 * 60 * 60 * 1000)) {
+            return '📅 Tomorrow';
+        } else if (compareDate >= yesterday && compareDate < today) {
+            return '📅 Yesterday';
+        } else if (compareDate >= thisWeekStart && compareDate < nextWeekStart) {
+            return '📅 This Week';
+        } else if (compareDate >= nextWeekStart && compareDate < new Date(nextWeekStart.getTime() + 7 * 24 * 60 * 60 * 1000)) {
+            return '📅 Next Week';
+        } else if (compareDate < yesterday) {
+            return '📅 Older';
+        } else {
+            return '📅 Future';
+        }
+    }
+
+    private sortGroupKeys(keys: string[], level: string): string[] {
+        const priorityOrder: { [key: string]: string[] } = {
+            'status': ['🔥 Urgent', '⚠️ Overdue', '📋 Active', '✅ Completed'],
+            'priority': ['🔴 High Priority', '🟡 Medium Priority', '⚪ Low Priority'],
+            'date': ['⚠️ Overdue', '📅 Today', '📅 Tomorrow', '📅 Yesterday', '📅 This Week', '📅 Next Week', '📅 Future', '📅 Older'],
+            'project': [] // Will be sorted alphabetically
+        };
+
+        if (level === 'project' || !priorityOrder[level]) {
+            return keys.sort();
+        }
+
+        const order = priorityOrder[level];
+        return keys.sort((a, b) => {
+            const aIndex = order.indexOf(a);
+            const bIndex = order.indexOf(b);
+            
+            if (aIndex === -1 && bIndex === -1) return a.localeCompare(b);
+            if (aIndex === -1) return 1;
+            if (bIndex === -1) return -1;
+            
+            return aIndex - bIndex;
+        });
+    }
+
+    private createGroupItem(key: string, level: string, todos: TodoItem[]): TodoTreeItem {
+        const urgentCount = todos.filter(t => this.isUrgent(t)).length;
+        const completedCount = todos.filter(t => t.completed).length;
+        const overdueCount = todos.filter(t => t.dueDate && t.dueDate < new Date() && !t.completed).length;
+
+        let description = `${todos.length} tasks`;
+        if (urgentCount > 0) description += ` • ${urgentCount} urgent`;
+        if (overdueCount > 0) description += ` • ${overdueCount} overdue`;
+        if (completedCount > 0 && level !== 'status') description += ` • ${completedCount} done`;
+
+        const groupTodo: TodoItem = {
+            id: `group-${level}-${key}`,
+            text: key,
+            completed: false,
+            createdAt: new Date(),
+            priority: 'medium'
+        };
+
+        const item = new TodoTreeItem(groupTodo, vscode.TreeItemCollapsibleState.Expanded, 'group');
+        item.description = description;
+        (item as any).groupLevel = level;
+        (item as any).groupKey = key;
+
+        // Set appropriate icons based on group type
+        item.iconPath = this.getGroupIcon(key, level);
+
+        return item;
+    }
+
+    private getGroupIcon(key: string, level: string): vscode.ThemeIcon {
+        if (key.includes('🔥') || key.includes('Urgent')) {
+            return new vscode.ThemeIcon('flame', new vscode.ThemeColor('charts.red'));
+        } else if (key.includes('⚠️') || key.includes('Overdue')) {
+            return new vscode.ThemeIcon('warning', new vscode.ThemeColor('charts.red'));
+        } else if (key.includes('✅') || key.includes('Completed')) {
+            return new vscode.ThemeIcon('check-all', new vscode.ThemeColor('charts.green'));
+        } else if (key.includes('📁') || level === 'project') {
+            return new vscode.ThemeIcon('folder', new vscode.ThemeColor('charts.blue'));
+        } else if (key.includes('🔴') || key.includes('High')) {
+            return new vscode.ThemeIcon('circle-filled', new vscode.ThemeColor('charts.red'));
+        } else if (key.includes('🟡') || key.includes('Medium')) {
+            return new vscode.ThemeIcon('circle-filled', new vscode.ThemeColor('charts.yellow'));
+        } else if (key.includes('📅') || level === 'date') {
+            return new vscode.ThemeIcon('calendar', new vscode.ThemeColor('charts.purple'));
+        } else {
+            return new vscode.ThemeIcon('list-unordered', new vscode.ThemeColor('charts.blue'));
+        }
+    }
+
+    private createNoResultsItem(): TodoTreeItem {
+        const noResultsTodo: TodoItem = {
+            id: 'no-results',
+            text: '🔍 No tasks match your current filters',
+            completed: false,
+            createdAt: new Date(),
+            priority: 'low'
+        };
+
+        const item = new TodoTreeItem(noResultsTodo, vscode.TreeItemCollapsibleState.None, 'group');
+        item.iconPath = new vscode.ThemeIcon('search', new vscode.ThemeColor('charts.gray'));
+        item.command = {
+            command: 'todoManager.clearFilters',
+            title: 'Clear Filters'
+        };
+        return item;
     }
 
     private getProjectGroups(todos: TodoItem[]): { [key: string]: TodoItem[] } {
@@ -385,6 +722,13 @@ export class TodoTreeDataProvider implements vscode.TreeDataProvider<TodoTreeIte
     }
 
     private async getGroupChildren(element: TodoTreeItem): Promise<TodoTreeItem[]> {
+        // Check if this group has child groups (multi-level grouping)
+        const childGroups = (element as any).groupChildren as TodoTreeItem[] || [];
+        if (childGroups.length > 0) {
+            return childGroups;
+        }
+
+        // Otherwise, return the todos in this group
         const todos = (element as any).groupTodos as TodoItem[] || [];
         return todos.map(todo => new TodoTreeItem(todo, vscode.TreeItemCollapsibleState.None, 'todo'));
     }
@@ -408,12 +752,14 @@ export class TodoTreeDataProvider implements vscode.TreeDataProvider<TodoTreeIte
         this.todos.push(newTodo);
         this.saveTodos();
         this.logTaskToFile(newTodo);
+        this.updateFilteredTodos();
         this.refresh();
     }
 
     deleteTodo(todoId: string): void {
         this.todos = this.todos.filter(todo => todo.id !== todoId);
         this.saveTodos();
+        this.updateFilteredTodos();
         this.refresh();
     }
 
@@ -422,6 +768,7 @@ export class TodoTreeDataProvider implements vscode.TreeDataProvider<TodoTreeIte
         if (todo) {
             todo.completed = !todo.completed;
             this.saveTodos();
+            this.updateFilteredTodos();
             this.refresh();
         }
     }
@@ -431,6 +778,7 @@ export class TodoTreeDataProvider implements vscode.TreeDataProvider<TodoTreeIte
         if (todo) {
             todo.text = newText;
             this.saveTodos();
+            this.updateFilteredTodos();
             this.refresh();
         }
     }
@@ -440,6 +788,7 @@ export class TodoTreeDataProvider implements vscode.TreeDataProvider<TodoTreeIte
         if (todo) {
             todo.reminder = reminderDate;
             this.saveTodos();
+            this.updateFilteredTodos();
             this.refresh();
             this.scheduleReminder(todo);
         }
@@ -480,6 +829,17 @@ export class TodoTreeDataProvider implements vscode.TreeDataProvider<TodoTreeIte
             dueDate: todo.dueDate ? new Date(todo.dueDate) : undefined,
             reminder: todo.reminder ? new Date(todo.reminder) : undefined
         }));
+
+        // Load saved grouping and filter settings
+        const savedGrouping = this.context.globalState.get<GroupingConfig>('todoGrouping');
+        if (savedGrouping) {
+            this.currentGrouping = savedGrouping;
+        }
+
+        const savedFilter = this.context.globalState.get<FilterConfig>('todoFilter');
+        if (savedFilter) {
+            this.currentFilter = savedFilter;
+        }
 
         // Add sample todos if none exist (for testing)
         if (this.todos.length === 0) {

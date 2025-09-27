@@ -645,6 +645,117 @@ async function showEnhancedTodoCreator(): Promise<TodoCreatorResult | undefined>
 	};
 }
 
+// Custom filter builder for advanced filtering
+async function showCustomFilterBuilder(todoProvider: any): Promise<void> {
+	const customFilter: any = {};
+
+	// Step 1: Status filter
+	const statusOptions = [
+		{ label: '📋 All Status', value: null },
+		{ label: '⏳ Pending Only', value: 'pending' },
+		{ label: '✅ Completed Only', value: 'completed' },
+		{ label: '⚠️ Overdue Only', value: 'overdue' },
+		{ label: '📋 Pending + Overdue', value: 'pending+overdue' }
+	];
+
+	const statusChoice = await vscode.window.showQuickPick(statusOptions, {
+		placeHolder: '🎯 Filter by Status',
+		ignoreFocusOut: true
+	});
+	if (!statusChoice) return;
+	
+	if (statusChoice.value === 'pending+overdue') {
+		customFilter.status = ['pending', 'overdue'];
+	} else if (statusChoice.value && statusChoice.value !== null) {
+		customFilter.status = [statusChoice.value];
+	}
+
+	// Step 2: Priority filter  
+	const priorityOptions = [
+		{ label: '🎯 All Priorities', value: null },
+		{ label: '� High Priority Only', value: 'high' },
+		{ label: '� Medium Priority Only', value: 'medium' },
+		{ label: '⚪ Low Priority Only', value: 'low' },
+		{ label: '� High + Medium', value: 'high+medium' }
+	];
+
+	const priorityChoice = await vscode.window.showQuickPick(priorityOptions, {
+		placeHolder: '⭐ Filter by Priority',
+		ignoreFocusOut: true
+	});
+	if (!priorityChoice) return;
+	
+	if (priorityChoice.value === 'high+medium') {
+		customFilter.priority = ['high', 'medium'];
+	} else if (priorityChoice.value && priorityChoice.value !== null) {
+		customFilter.priority = [priorityChoice.value];
+	}
+
+	// Step 3: Date range filter
+	const dateOptions = [
+		{ label: '📅 All Dates', value: 'all' },
+		{ label: '📅 Today', value: 'today' },
+		{ label: '📅 This Week', value: 'thisWeek' },
+		{ label: '📅 This Month', value: 'thisMonth' },
+		{ label: '⚠️ Overdue', value: 'overdue' },
+		{ label: '🔮 Upcoming', value: 'upcoming' }
+	];
+
+	const dateChoice = await vscode.window.showQuickPick(dateOptions, {
+		placeHolder: '📅 Filter by Date Range',
+		ignoreFocusOut: true
+	});
+	if (!dateChoice) return;
+	if (dateChoice.value && dateChoice.value !== 'all') {
+		customFilter.dateRange = dateChoice.value;
+	}
+
+	// Step 4: Project filter (dynamic based on available projects)
+	const availableProjects = todoProvider.getAvailableProjects();
+	if (availableProjects.length > 1) {
+		const projectOptions = [
+			{ label: '📁 All Projects', value: null },
+			...availableProjects.map((project: string) => ({
+				label: `📁 ${project}`,
+				value: project
+			}))
+		];
+
+		const projectChoice = await vscode.window.showQuickPick(projectOptions, {
+			placeHolder: '📁 Filter by Project',
+			ignoreFocusOut: true
+		});
+		if (!projectChoice) return;
+		if (projectChoice.value && projectChoice.value !== null) {
+			customFilter.projects = [projectChoice.value];
+		}
+	}
+
+	// Step 5: Optional search text
+	const searchText = await vscode.window.showInputBox({
+		prompt: '🔍 Search in task text (optional)',
+		placeHolder: 'Enter keywords to search for...',
+		ignoreFocusOut: true
+	});
+	if (searchText && searchText.trim()) {
+		customFilter.searchText = searchText.trim();
+	}
+
+	// Apply the custom filter
+	todoProvider.setFilter(customFilter);
+
+	// Show confirmation
+	const filterDescription = [];
+	if (customFilter.status) filterDescription.push(`Status: ${customFilter.status.join(', ')}`);
+	if (customFilter.priority) filterDescription.push(`Priority: ${customFilter.priority.join(', ')}`);
+	if (customFilter.dateRange) filterDescription.push(`Date: ${customFilter.dateRange}`);
+	if (customFilter.projects) filterDescription.push(`Project: ${customFilter.projects.join(', ')}`);
+	if (customFilter.searchText) filterDescription.push(`Search: "${customFilter.searchText}"`);
+
+	const description = filterDescription.length > 0 ? filterDescription.join(' • ') : 'No filters';
+	vscode.window.showInformationMessage(`🔍 Custom filter applied: ${description}`);
+}
+
 // Generate beautiful HTML for task detail view
 function generateTaskDetailHTML(todo: any): string {
 	const now = new Date();
@@ -993,6 +1104,86 @@ export function activate(context: vscode.ExtensionContext) {
 		// Open Panel Command
 		vscode.commands.registerCommand('todoManager.openPanel', () => {
 			vscode.commands.executeCommand('workbench.view.extension.todo-sidebar');
+		}),
+
+		// Advanced Grouping Command
+		vscode.commands.registerCommand('todoManager.changeGrouping', async () => {
+			const groupingOptions = [
+				{ label: '📅 Group by Date → Status → Priority', description: 'Recent tasks first (Recommended)', value: { primary: 'date', secondary: 'status', tertiary: 'priority' } },
+				{ label: '🎯 Group by Status → Priority → Project', description: 'Focus on task status', value: { primary: 'status', secondary: 'priority', tertiary: 'project' } },
+				{ label: '⭐ Group by Priority → Date → Project', description: 'Focus on important tasks', value: { primary: 'priority', secondary: 'date', tertiary: 'project' } },
+				{ label: '📁 Group by Project → Status → Priority', description: 'Focus on projects', value: { primary: 'project', secondary: 'status', tertiary: 'priority' } },
+				{ label: '📅 Group by Date Only', description: 'Simple date grouping', value: { primary: 'date' } },
+				{ label: '🎯 Group by Status Only', description: 'Simple status grouping', value: { primary: 'status' } },
+				{ label: '⭐ Group by Priority Only', description: 'Simple priority grouping', value: { primary: 'priority' } },
+				{ label: '📁 Group by Project Only', description: 'Simple project grouping', value: { primary: 'project' } }
+			];
+
+			const selected = await vscode.window.showQuickPick(groupingOptions, {
+				placeHolder: '🗂️ Choose how to organize your todos',
+				matchOnDescription: true,
+				ignoreFocusOut: true
+			});
+
+			if (selected) {
+				todoProvider.setGrouping(selected.value as any);
+				vscode.window.showInformationMessage(`🗂️ Grouping changed to: ${selected.label.split('→')[0].trim()}`);
+			}
+		}),
+
+		// Advanced Filtering Command
+		vscode.commands.registerCommand('todoManager.advancedFilter', async () => {
+			const filterOptions = [
+				{ label: '📅 Today\'s Tasks', description: 'Show only today\'s tasks', value: { dateRange: 'today' } },
+				{ label: '📅 This Week', description: 'Show this week\'s tasks', value: { dateRange: 'thisWeek' } },
+				{ label: '📅 This Month', description: 'Show this month\'s tasks', value: { dateRange: 'thisMonth' } },
+				{ label: '⚠️ Overdue Tasks', description: 'Show only overdue tasks', value: { dateRange: 'overdue' } },
+				{ label: '🔥 High Priority Only', description: 'Show only high priority tasks', value: { priority: ['high'] } },
+				{ label: '📋 Pending Tasks Only', description: 'Hide completed tasks', value: { status: ['pending', 'overdue'] } },
+				{ label: '✅ Completed Tasks Only', description: 'Show only completed tasks', value: { status: ['completed'] } },
+				{ label: '🔍 Custom Filter...', description: 'Build custom filter', value: 'custom' },
+				{ label: '🔄 Clear All Filters', description: 'Show all tasks', value: 'clear' }
+			];
+
+			const selected = await vscode.window.showQuickPick(filterOptions, {
+				placeHolder: '🔍 Filter your todos',
+				matchOnDescription: true,
+				ignoreFocusOut: true
+			});
+
+			if (selected) {
+				if (selected.value === 'clear') {
+					todoProvider.setFilter({ dateRange: 'all' });
+					vscode.window.showInformationMessage('🔄 All filters cleared');
+				} else if (selected.value === 'custom') {
+					await showCustomFilterBuilder(todoProvider);
+				} else {
+					todoProvider.setFilter(selected.value as any);
+					vscode.window.showInformationMessage(`🔍 Filter applied: ${selected.label}`);
+				}
+			}
+		}),
+
+		// Clear Filters Command
+		vscode.commands.registerCommand('todoManager.clearFilters', () => {
+			todoProvider.setFilter({ dateRange: 'all' });
+			vscode.window.showInformationMessage('🔄 All filters cleared');
+		}),
+
+		// Quick Filter Commands
+		vscode.commands.registerCommand('todoManager.filterToday', () => {
+			todoProvider.setFilter({ dateRange: 'today' });
+			vscode.window.showInformationMessage('📅 Showing today\'s tasks');
+		}),
+
+		vscode.commands.registerCommand('todoManager.filterHighPriority', () => {
+			todoProvider.setFilter({ priority: ['high'] });
+			vscode.window.showInformationMessage('🔥 Showing high priority tasks');
+		}),
+
+		vscode.commands.registerCommand('todoManager.filterOverdue', () => {
+			todoProvider.setFilter({ dateRange: 'overdue' });
+			vscode.window.showInformationMessage('⚠️ Showing overdue tasks');
 		}),
 
 		// View Task Log Command
