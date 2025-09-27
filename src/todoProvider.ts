@@ -14,38 +14,58 @@ export interface TodoItem {
 export class TodoTreeItem extends vscode.TreeItem {
     constructor(
         public readonly todo: TodoItem,
-        public readonly collapsibleState: vscode.TreeItemCollapsibleState
+        public readonly collapsibleState: vscode.TreeItemCollapsibleState,
+        public readonly itemType: 'todo' | 'group' | 'project' = 'todo'
     ) {
         super(todo.text, collapsibleState);
         
         this.tooltip = this.getTooltip();
         this.description = this.getDescription();
-        this.contextValue = 'todoItem';
+        this.contextValue = this.getContextValue();
         this.iconPath = this.getIcon();
         
-        // Add strike-through for completed todos
-        if (todo.completed) {
-            this.resourceUri = vscode.Uri.parse(`todo:${todo.id}`);
+        // Add click command to open task details
+        if (itemType === 'todo') {
             this.command = {
-                command: 'vscode.open',
-                title: 'Open',
-                arguments: [this.resourceUri]
+                command: 'todoManager.openTaskDetail',
+                title: 'Open Task Details',
+                arguments: [this.todo]
             };
+        }
+        
+        // Add styling for completed todos
+        if (todo.completed && itemType === 'todo') {
+            this.resourceUri = vscode.Uri.parse(`completed-todo:${todo.id}`);
         }
     }
 
+    private getContextValue(): string {
+        if (this.itemType === 'group') {
+            return 'todoGroup';
+        } else if (this.itemType === 'project') {
+            return 'todoProject';
+        }
+        return 'todoItem';
+    }
+
     private getTooltip(): string {
-        let tooltip = `${this.todo.text}\n`;
-        tooltip += `Created: ${this.todo.createdAt.toLocaleDateString()}\n`;
-        tooltip += `Priority: ${this.todo.priority}\n`;
-        tooltip += `Status: ${this.todo.completed ? 'Completed' : 'Pending'}`;
+        if (this.itemType !== 'todo') {
+            return this.label as string;
+        }
+        
+        let tooltip = `📝 ${this.todo.text}\n`;
+        tooltip += `📅 Created: ${this.todo.createdAt.toLocaleDateString()}\n`;
+        tooltip += `⭐ Priority: ${this.todo.priority.toUpperCase()}\n`;
+        tooltip += `📊 Status: ${this.todo.completed ? '✅ Completed' : '⏳ Pending'}`;
         
         if (this.todo.projectName) {
-            tooltip += `\nProject: ${this.todo.projectName}`;
+            tooltip += `\n📁 Project: ${this.todo.projectName}`;
         }
         
         if (this.todo.dueDate) {
-            tooltip += `\nDue Date: ${this.todo.dueDate.toLocaleDateString()}`;
+            const now = new Date();
+            const isOverdue = this.todo.dueDate < now && !this.todo.completed;
+            tooltip += `\n🗓️ Due: ${this.todo.dueDate.toLocaleDateString()}${isOverdue ? ' (OVERDUE!)' : ''}`;
         }
         
         if (this.todo.reminder) {
@@ -56,60 +76,98 @@ export class TodoTreeItem extends vscode.TreeItem {
     }
 
     private getDescription(): string {
-        let description = '';
-        
-        // Add project name first if available
-        if (this.todo.projectName) {
-            description = `📁 ${this.todo.projectName}`;
+        if (this.itemType === 'group') {
+            return this.getGroupDescription();
+        } else if (this.itemType === 'project') {
+            return this.getProjectDescription();
         }
         
+        return this.getTodoDescription();
+    }
+
+    private getGroupDescription(): string {
+        // For group items, we'll set the description when creating them
+        return '';
+    }
+
+    private getProjectDescription(): string {
+        // For project items, we'll set the description when creating them
+        return '';
+    }
+
+    private getTodoDescription(): string {
+        const parts: string[] = [];
+        
+        // Priority indicator (always first)
+        const priorityEmoji = this.todo.priority === 'high' ? '🔴' : 
+                             this.todo.priority === 'medium' ? '🟡' : '⚪';
+        parts.push(priorityEmoji);
+        
+        // Status
         if (this.todo.completed) {
-            return description ? `${description} • ✓ Completed` : '✓ Completed';
-        }
-        
-        if (this.todo.dueDate) {
-            const now = new Date();
-            const timeDiff = this.todo.dueDate.getTime() - now.getTime();
-            const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
-            
-            let dueDateDesc = '';
-            if (daysDiff < 0) {
-                dueDateDesc = '⚠️ Overdue';
-            } else if (daysDiff === 0) {
-                dueDateDesc = '🔥 Due Today';
-            } else if (daysDiff === 1) {
-                dueDateDesc = '📅 Due Tomorrow';
-            } else if (daysDiff <= 7) {
-                dueDateDesc = `📅 Due in ${daysDiff} days`;
+            parts.push('✅');
+        } else {
+            // Due date status
+            if (this.todo.dueDate) {
+                const now = new Date();
+                const timeDiff = this.todo.dueDate.getTime() - now.getTime();
+                const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+                
+                if (daysDiff < 0) {
+                    parts.push('⚠️ OVERDUE');
+                } else if (daysDiff === 0) {
+                    parts.push('🔥 TODAY');
+                } else if (daysDiff === 1) {
+                    parts.push('📅 TOMORROW');
+                } else if (daysDiff <= 3) {
+                    parts.push(`📅 ${daysDiff}d`);
+                } else if (daysDiff <= 7) {
+                    parts.push(`📅 ${daysDiff}d`);
+                }
             }
             
-            if (dueDateDesc) {
-                return description ? `${description} • ${dueDateDesc}` : dueDateDesc;
+            // Reminder indicator
+            if (this.todo.reminder) {
+                parts.push('🔔');
             }
         }
         
-        const priorityDesc = this.todo.priority === 'high' ? '🔴 High Priority' : 
-                           this.todo.priority === 'medium' ? '🟡 Medium Priority' : '';
-        
-        if (priorityDesc) {
-            return description ? `${description} • ${priorityDesc}` : priorityDesc;
-        }
-        
-        return description;
+        return parts.join(' ');
     }
 
     private getIcon(): vscode.ThemeIcon {
-        if (this.todo.completed) {
-            return new vscode.ThemeIcon('check', new vscode.ThemeColor('charts.green'));
+        if (this.itemType === 'group') {
+            return this.getGroupIcon();
+        } else if (this.itemType === 'project') {
+            return new vscode.ThemeIcon('folder', new vscode.ThemeColor('charts.blue'));
         }
         
+        return this.getTodoIcon();
+    }
+
+    private getGroupIcon(): vscode.ThemeIcon {
+        // Icons will be set based on group type when creating the item
+        return new vscode.ThemeIcon('list-unordered');
+    }
+
+    private getTodoIcon(): vscode.ThemeIcon {
+        if (this.todo.completed) {
+            return new vscode.ThemeIcon('check-all', new vscode.ThemeColor('charts.green'));
+        }
+        
+        // Check if overdue
+        if (this.todo.dueDate && this.todo.dueDate < new Date()) {
+            return new vscode.ThemeIcon('warning', new vscode.ThemeColor('charts.red'));
+        }
+        
+        // Priority-based icons
         switch (this.todo.priority) {
             case 'high':
-                return new vscode.ThemeIcon('circle-filled', new vscode.ThemeColor('charts.red'));
+                return new vscode.ThemeIcon('flame', new vscode.ThemeColor('charts.red'));
             case 'medium':
                 return new vscode.ThemeIcon('circle-filled', new vscode.ThemeColor('charts.yellow'));
             default:
-                return new vscode.ThemeIcon('circle-outline');
+                return new vscode.ThemeIcon('circle-outline', new vscode.ThemeColor('charts.gray'));
         }
     }
 }
@@ -140,35 +198,200 @@ export class TodoTreeDataProvider implements vscode.TreeDataProvider<TodoTreeIte
         console.log(`📋 getChildren called, element: ${element ? element.todo.text : 'root'}, todos count: ${this.todos.length}`);
         
         if (!element) {
-            // Return root level todos grouped by status
-            const pendingTodos = this.todos
-                .filter(todo => !todo.completed)
-                .sort((a, b) => {
-                    // Sort by priority first, then by due date
-                    const priorityOrder = { high: 3, medium: 2, low: 1 };
-                    if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
-                        return priorityOrder[b.priority] - priorityOrder[a.priority];
-                    }
-                    if (a.dueDate && b.dueDate) {
-                        return a.dueDate.getTime() - b.dueDate.getTime();
-                    }
-                    return a.createdAt.getTime() - b.createdAt.getTime();
-                });
-
-            const completedTodos = this.todos
-                .filter(todo => todo.completed)
-                .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-
-            const allTodos = [...pendingTodos, ...completedTodos];
-            const treeItems = allTodos.map(todo => 
-                new TodoTreeItem(todo, vscode.TreeItemCollapsibleState.None)
-            );
-            
-            console.log(`📋 Returning ${treeItems.length} tree items (${pendingTodos.length} pending, ${completedTodos.length} completed)`);
-            return Promise.resolve(treeItems);
+            return this.getRootElements();
         }
-        console.log('📋 Returning empty array for non-root element');
+        
+        // Handle group children
+        if (element.itemType === 'group') {
+            return this.getGroupChildren(element);
+        }
+        
+        // Handle project children
+        if (element.itemType === 'project') {
+            return this.getProjectChildren(element);
+        }
+        
+        console.log('📋 Returning empty array for todo item');
         return Promise.resolve([]);
+    }
+
+    private async getRootElements(): Promise<TodoTreeItem[]> {
+        const items: TodoTreeItem[] = [];
+        
+        // Get pending todos
+        const pendingTodos = this.todos.filter(todo => !todo.completed);
+        const completedTodos = this.todos.filter(todo => todo.completed);
+        
+        // Group by projects if we have any
+        const projectGroups = this.getProjectGroups(pendingTodos);
+        const hasProjects = Object.keys(projectGroups).length > 1 || 
+                           (Object.keys(projectGroups).length === 1 && !projectGroups['']);
+
+        if (hasProjects) {
+            // Add project groups
+            Object.entries(projectGroups).forEach(([projectName, todos]) => {
+                if (todos.length > 0) {
+                    const displayName = projectName || '📝 No Project';
+                    const projectItem = this.createProjectItem(displayName, todos);
+                    items.push(projectItem);
+                }
+            });
+        } else {
+            // No projects - group by status/priority
+            if (pendingTodos.length > 0) {
+                const urgentTodos = pendingTodos.filter(t => this.isUrgent(t));
+                const normalTodos = pendingTodos.filter(t => !this.isUrgent(t));
+                
+                if (urgentTodos.length > 0) {
+                    const urgentGroup = this.createStatusGroup('🔥 Urgent Tasks', urgentTodos, 'urgent');
+                    items.push(urgentGroup);
+                }
+                
+                if (normalTodos.length > 0) {
+                    const normalGroup = this.createStatusGroup('📋 Active Tasks', normalTodos, 'active'); 
+                    items.push(normalGroup);
+                }
+            }
+        }
+        
+        // Add completed group if there are completed todos
+        if (completedTodos.length > 0) {
+            const completedGroup = this.createStatusGroup(`✅ Completed (${completedTodos.length})`, completedTodos, 'completed');
+            items.push(completedGroup);
+        }
+        
+        // If no todos at all, show welcome message
+        if (this.todos.length === 0) {
+            const welcomeItem = this.createWelcomeItem();
+            items.push(welcomeItem);
+        }
+        
+        console.log(`📋 Returning ${items.length} root elements`);
+        return items;
+    }
+
+    private getProjectGroups(todos: TodoItem[]): { [key: string]: TodoItem[] } {
+        const groups: { [key: string]: TodoItem[] } = {};
+        
+        todos.forEach(todo => {
+            const projectName = todo.projectName || '';
+            if (!groups[projectName]) {
+                groups[projectName] = [];
+            }
+            groups[projectName].push(todo);
+        });
+        
+        // Sort todos within each project
+        Object.keys(groups).forEach(projectName => {
+            groups[projectName] = this.sortTodos(groups[projectName]);
+        });
+        
+        return groups;
+    }
+
+    private sortTodos(todos: TodoItem[]): TodoItem[] {
+        return todos.sort((a, b) => {
+            // Sort by priority first
+            const priorityOrder = { high: 3, medium: 2, low: 1 };
+            if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
+                return priorityOrder[b.priority] - priorityOrder[a.priority];
+            }
+            
+            // Then by due date
+            if (a.dueDate && b.dueDate) {
+                return a.dueDate.getTime() - b.dueDate.getTime();
+            }
+            if (a.dueDate) return -1;
+            if (b.dueDate) return 1;
+            
+            // Finally by creation date
+            return a.createdAt.getTime() - b.createdAt.getTime();
+        });
+    }
+
+    private isUrgent(todo: TodoItem): boolean {
+        if (todo.priority === 'high') return true;
+        
+        if (todo.dueDate) {
+            const now = new Date();
+            const timeDiff = todo.dueDate.getTime() - now.getTime();
+            const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+            return daysDiff <= 1; // Due today or overdue
+        }
+        
+        return false;
+    }
+
+    private createProjectItem(projectName: string, todos: TodoItem[]): TodoTreeItem {
+        const urgentCount = todos.filter(t => this.isUrgent(t)).length;
+        const description = urgentCount > 0 ? `${todos.length} tasks • ${urgentCount} urgent` : `${todos.length} tasks`;
+        
+        const projectTodo: TodoItem = {
+            id: `project-${projectName}`,
+            text: projectName,
+            completed: false,
+            createdAt: new Date(),
+            priority: 'medium',
+            projectName: projectName
+        };
+        
+        const item = new TodoTreeItem(projectTodo, vscode.TreeItemCollapsibleState.Expanded, 'project');
+        item.description = description;
+        (item as any).projectTodos = todos; // Store todos for children
+        return item;
+    }
+
+    private createStatusGroup(label: string, todos: TodoItem[], groupType: string): TodoTreeItem {
+        const groupTodo: TodoItem = {
+            id: `group-${groupType}`,
+            text: label,
+            completed: false,
+            createdAt: new Date(),
+            priority: 'medium'
+        };
+        
+        const item = new TodoTreeItem(groupTodo, vscode.TreeItemCollapsibleState.Expanded, 'group');
+        (item as any).groupTodos = todos; // Store todos for children
+        (item as any).groupType = groupType; // Store group type
+        
+        // Set appropriate icon
+        if (groupType === 'urgent') {
+            item.iconPath = new vscode.ThemeIcon('flame', new vscode.ThemeColor('charts.red'));
+        } else if (groupType === 'completed') {
+            item.iconPath = new vscode.ThemeIcon('check-all', new vscode.ThemeColor('charts.green'));
+        } else {
+            item.iconPath = new vscode.ThemeIcon('list-unordered', new vscode.ThemeColor('charts.blue'));
+        }
+        
+        return item;
+    }
+
+    private createWelcomeItem(): TodoTreeItem {
+        const welcomeTodo: TodoItem = {
+            id: 'welcome',
+            text: '🎉 Welcome! Click + to add your first todo',
+            completed: false,
+            createdAt: new Date(),
+            priority: 'low'
+        };
+        
+        const item = new TodoTreeItem(welcomeTodo, vscode.TreeItemCollapsibleState.None, 'group');
+        item.iconPath = new vscode.ThemeIcon('star', new vscode.ThemeColor('charts.yellow'));
+        item.command = {
+            command: 'todoManager.addTodo',
+            title: 'Add Todo'
+        };
+        return item;
+    }
+
+    private async getGroupChildren(element: TodoTreeItem): Promise<TodoTreeItem[]> {
+        const todos = (element as any).groupTodos as TodoItem[] || [];
+        return todos.map(todo => new TodoTreeItem(todo, vscode.TreeItemCollapsibleState.None, 'todo'));
+    }
+
+    private async getProjectChildren(element: TodoTreeItem): Promise<TodoTreeItem[]> {
+        const todos = (element as any).projectTodos as TodoItem[] || [];
+        return todos.map(todo => new TodoTreeItem(todo, vscode.TreeItemCollapsibleState.None, 'todo'));
     }
 
     addTodo(text: string, priority: 'low' | 'medium' | 'high' = 'medium', dueDate?: Date, projectName?: string): void {

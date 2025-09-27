@@ -645,6 +645,206 @@ async function showEnhancedTodoCreator(): Promise<TodoCreatorResult | undefined>
 	};
 }
 
+// Generate beautiful HTML for task detail view
+function generateTaskDetailHTML(todo: any): string {
+	const now = new Date();
+	const isOverdue = todo.dueDate && new Date(todo.dueDate) < now && !todo.completed;
+	const priorityColor = todo.priority === 'high' ? '#ff4757' : 
+						  todo.priority === 'medium' ? '#ffa502' : '#57606f';
+	const statusIcon = todo.completed ? '✅' : (isOverdue ? '⚠️' : '⏳');
+	const statusText = todo.completed ? 'Completed' : (isOverdue ? 'Overdue' : 'Active');
+	const statusColor = todo.completed ? '#2ed573' : (isOverdue ? '#ff4757' : '#3742fa');
+
+	return `
+		<!DOCTYPE html>
+		<html lang="en">
+		<head>
+			<meta charset="UTF-8">
+			<meta name="viewport" content="width=device-width, initial-scale=1.0">
+			<title>Task Details</title>
+			<style>
+				body {
+					font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+					margin: 0;
+					padding: 20px;
+					background: var(--vscode-editor-background);
+					color: var(--vscode-editor-foreground);
+					line-height: 1.6;
+				}
+				.task-header {
+					background: var(--vscode-sideBar-background);
+					border-radius: 8px;
+					padding: 20px;
+					margin-bottom: 20px;
+					border-left: 4px solid ${priorityColor};
+				}
+				.task-title {
+					font-size: 1.4em;
+					font-weight: 600;
+					margin: 0 0 10px 0;
+					color: var(--vscode-editor-foreground);
+				}
+				.task-meta {
+					display: flex;
+					gap: 15px;
+					flex-wrap: wrap;
+					margin-top: 15px;
+				}
+				.meta-item {
+					display: flex;
+					align-items: center;
+					gap: 5px;
+					background: var(--vscode-input-background);
+					padding: 5px 10px;
+					border-radius: 15px;
+					font-size: 0.9em;
+				}
+				.status-badge {
+					background: ${statusColor}20;
+					color: ${statusColor};
+					font-weight: 500;
+				}
+				.priority-badge {
+					background: ${priorityColor}20;
+					color: ${priorityColor};
+					font-weight: 500;
+				}
+				.actions {
+					display: grid;
+					grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+					gap: 10px;
+					margin-top: 20px;
+				}
+				.btn {
+					padding: 10px 15px;
+					border: none;
+					border-radius: 6px;
+					cursor: pointer;
+					font-weight: 500;
+					transition: all 0.2s;
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					gap: 6px;
+				}
+				.btn-primary {
+					background: var(--vscode-button-background);
+					color: var(--vscode-button-foreground);
+				}
+				.btn-primary:hover {
+					background: var(--vscode-button-hoverBackground);
+				}
+				.btn-secondary {
+					background: var(--vscode-input-background);
+					color: var(--vscode-input-foreground);
+					border: 1px solid var(--vscode-input-border);
+				}
+				.btn-danger {
+					background: #ff475720;
+					color: #ff4757;
+					border: 1px solid #ff475740;
+				}
+				.info-section {
+					background: var(--vscode-sideBar-background);
+					border-radius: 8px;
+					padding: 15px;
+					margin-top: 15px;
+				}
+				.info-title {
+					font-weight: 600;
+					margin-bottom: 10px;
+					color: var(--vscode-editor-foreground);
+				}
+				.info-item {
+					margin: 8px 0;
+					display: flex;
+					align-items: center;
+					gap: 8px;
+				}
+				.emoji {
+					font-size: 1.1em;
+				}
+			</style>
+		</head>
+		<body>
+			<div class="task-header">
+				<div class="task-title">${todo.text}</div>
+				<div class="task-meta">
+					<div class="meta-item status-badge">
+						<span class="emoji">${statusIcon}</span>
+						${statusText}
+					</div>
+					<div class="meta-item priority-badge">
+						<span class="emoji">${todo.priority === 'high' ? '🔴' : todo.priority === 'medium' ? '🟡' : '⚪'}</span>
+						${todo.priority.toUpperCase()} Priority
+					</div>
+					${todo.projectName ? `<div class="meta-item"><span class="emoji">📁</span>${todo.projectName}</div>` : ''}
+				</div>
+			</div>
+
+			<div class="actions">
+				${!todo.completed ? '<button class="btn btn-primary" onclick="completeTask()">✅ Mark Complete</button>' : '<button class="btn btn-secondary" onclick="completeTask()">↩️ Mark Incomplete</button>'}
+				<button class="btn btn-secondary" onclick="editTask()">✏️ Edit</button>
+				<button class="btn btn-secondary" onclick="setReminder()">🔔 Set Reminder</button>
+				<button class="btn btn-danger" onclick="deleteTask()">🗑️ Delete</button>
+			</div>
+
+			<div class="info-section">
+				<div class="info-title">📊 Task Information</div>
+				<div class="info-item">
+					<span class="emoji">📅</span>
+					<strong>Created:</strong> ${new Date(todo.createdAt).toLocaleDateString()} at ${new Date(todo.createdAt).toLocaleTimeString()}
+				</div>
+				${todo.dueDate ? `<div class="info-item">
+					<span class="emoji">🗓️</span>
+					<strong>Due Date:</strong> ${new Date(todo.dueDate).toLocaleDateString()} at ${new Date(todo.dueDate).toLocaleTimeString()}
+					${isOverdue ? '<span style="color: #ff4757; font-weight: bold;"> (OVERDUE!)</span>' : ''}
+				</div>` : ''}
+				${todo.reminder ? `<div class="info-item">
+					<span class="emoji">🔔</span>
+					<strong>Reminder:</strong> ${new Date(todo.reminder).toLocaleDateString()} at ${new Date(todo.reminder).toLocaleTimeString()}
+				</div>` : ''}
+				<div class="info-item">
+					<span class="emoji">🆔</span>
+					<strong>Task ID:</strong> ${todo.id}
+				</div>
+			</div>
+
+			<div class="info-section">
+				<div class="info-title">🎯 Quick Actions</div>
+				<div style="display: flex; gap: 10px; flex-wrap: wrap;">
+					<button class="btn btn-secondary" onclick="openTaskLog()">📄 View Task Log</button>
+				</div>
+			</div>
+
+			<script>
+				const vscode = acquireVsCodeApi();
+
+				function completeTask() {
+					vscode.postMessage({ command: 'complete' });
+				}
+
+				function editTask() {
+					vscode.postMessage({ command: 'edit' });
+				}
+
+				function deleteTask() {
+					vscode.postMessage({ command: 'delete' });
+				}
+
+				function setReminder() {
+					vscode.postMessage({ command: 'setReminder' });
+				}
+
+				function openTaskLog() {
+					vscode.postMessage({ command: 'openLog' });
+				}
+			</script>
+		</body>
+		</html>
+	`;
+}
+
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
@@ -834,6 +1034,71 @@ export function activate(context: vscode.ExtensionContext) {
 			} catch (error) {
 				console.error('❌ Error opening task log:', error);
 				vscode.window.showErrorMessage(`Failed to open task log: ${error}`);
+			}
+		}),
+
+		// Task Detail View Command
+		vscode.commands.registerCommand('todoManager.openTaskDetail', async (todo: any) => {
+			try {
+				// Create a comprehensive task detail panel
+				const panel = vscode.window.createWebviewPanel(
+					'taskDetail',
+					`📝 ${todo.text}`,
+					vscode.ViewColumn.Beside,
+					{
+						enableScripts: true,
+						retainContextWhenHidden: true
+					}
+				);
+
+				// Generate the task detail HTML
+				panel.webview.html = generateTaskDetailHTML(todo);
+
+				// Handle messages from the webview
+				panel.webview.onDidReceiveMessage(async (message) => {
+					switch (message.command) {
+						case 'complete':
+							todoProvider.completeTodo(todo.id);
+							panel.dispose();
+							break;
+						case 'edit':
+							const newText = await vscode.window.showInputBox({
+								prompt: 'Edit task text',
+								value: todo.text,
+								placeHolder: 'Enter task description...'
+							});
+							if (newText) {
+								todoProvider.editTodo(todo.id, newText);
+								panel.title = `📝 ${newText}`;
+								panel.webview.html = generateTaskDetailHTML({...todo, text: newText});
+							}
+							break;
+						case 'delete':
+							const confirm = await vscode.window.showWarningMessage(
+								'Are you sure you want to delete this task?',
+								'Delete', 'Cancel'
+							);
+							if (confirm === 'Delete') {
+								todoProvider.deleteTodo(todo.id);
+								panel.dispose();
+							}
+							break;
+						case 'setReminder':
+							const reminderResult = await showSmartReminderPicker();
+							if (reminderResult) {
+								todoProvider.setReminder(todo.id, reminderResult);
+								panel.webview.html = generateTaskDetailHTML({...todo, reminder: reminderResult});
+							}
+							break;
+						case 'openLog':
+							vscode.commands.executeCommand('todoManager.viewTaskLog');
+							break;
+					}
+				});
+
+			} catch (error) {
+				console.error('❌ Error opening task detail:', error);
+				vscode.window.showErrorMessage(`Failed to open task details: ${error}`);
 			}
 		})
 	];

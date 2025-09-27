@@ -2,37 +2,92 @@
 
 A powerful VS Code extension that helps you manage todos and set task reminders directly within your development environment. Features a dedicated side panel for easy access and smart notifications to keep you on track.
 
-## Features
+## ✨ Features
 
-### 🎯 **Side Panel Integration**
-- Dedicated activity bar icon for quick access
-- Clean, intuitive tree view for managing todos
-- Similar UX to popular extensions like GitLens and GitHub Copilot
+### � **Modern UI/UX Design**
+- 🏗️ **Hierarchical Organization** - Tasks grouped by projects, priority, and status
+- 📱 **Professional Interface** - Clean, modern design following VS Code guidelines  
+- 🎯 **Interactive Detail View** - Click any task to open comprehensive details panel
+- 💫 **Smart Visual Indicators** - Priority colors, status icons, and urgency badges
+- 🚀 **Quick Actions** - Inline buttons and context menus for efficiency
 
-### ✅ **Smart Todo Management**
-- Add todos with different priority levels (High, Medium, Low)
-- Set due dates with quick options (Today, Tomorrow, This week, Custom)
-- Mark todos as complete/incomplete
-- Edit todo text inline
-- Delete todos with confirmation
+### 🎯 **Professional Side Panel Integration**
+- 📊 **Activity Bar Integration** - Dedicated sidebar like GitLens/GitHub extensions
+- 🏷️ **Smart Grouping** - Automatic organization by urgency, projects, and completion
+- 🎪 **Interactive Tree View** - Click to expand/collapse groups and view details
+- 🎨 **VS Code Theme Support** - Adapts to your editor theme automatically
 
-### 🔔 **Smart Reminders & Notifications**
-- Set custom reminders for any todo
-- Quick reminder options (5 min, 15 min, 30 min, 1 hour, etc.)
-- Smart notifications with action buttons (Complete, Snooze, Dismiss)
-- Automatic overdue todo detection
-- Hourly background checks for overdue tasks
+### ✅ **Advanced Todo Management**
+- 📝 **Enhanced Creation Flow** - 4-step guided todo creation with project support
+- 📁 **Project Organization** - Categorize and group tasks by project names
+- ⭐ **Smart Priority System** - Visual priority levels (🔴 High, 🟡 Medium, ⚪ Low)
+- 🔄 **Real-time Updates** - Instant refresh and synchronization
+- ✏️ **Rich Editing** - Inline editing with comprehensive detail views
 
-### 🎨 **Visual Indicators**
-- Color-coded priority levels (Red for High, Yellow for Medium)
-- Status icons (✓ for completed, ⚠️ for overdue, 🔥 for due today)
-- Rich tooltips with detailed information
-- Smart sorting (priority first, then due date)
+### 🔔 **Intelligent Reminders & Notifications**
+- 🎯 **Natural Language Support** - "tomorrow at 2pm", "next Friday at 9am"
+- ⏰ **Smart Quick Options** - Contextual time suggestions (5min, 1hr, tomorrow 9am)
+- 💡 **AI-Powered Suggestions** - Intelligent reminder time recommendations
+- 🔔 **Rich Notifications** - Action buttons (Complete, Snooze, Dismiss)
+- ⚠️ **Overdue Detection** - Automatic identification with visual warnings
 
-### 💾 **Persistent Storage**
-- Todos are saved automatically to VS Code's global state
-- Data persists across VS Code sessions
-- No external dependencies required
+### 🎨 **Enhanced Visual Experience**
+- 🌈 **Dynamic Icons** - Priority-based icons (🔥 urgent, ⚠️ overdue, ✅ completed)
+- 📊 **Status Badges** - Real-time status indicators with emoji support
+- 🎯 **Urgency Highlighting** - Visual emphasis for time-sensitive tasks
+- 📅 **Smart Descriptions** - Contextual due date and priority information
+- 🎪 **Welcome Screen** - Guided onboarding for new users
+
+### 💾 **Advanced Data Management**
+- 📝 **Persistent Task Logging** - Automatic logging to `~/vscode-todo-tasks.txt`
+- 🗂️ **Structured File Format** - Organized by date and project with proper indentation
+- 💾 **Global State Storage** - Secure storage across VS Code sessions
+- 📄 **Integrated Log Viewer** - One-click access to task history file
+- 🔄 **Automatic Backup** - Continuous task logging for data safety
+
+## 🚀 How to Use
+
+### 🎯 **Getting Started**
+1. **Find the Extension** - Look for the 📋 **Todo Manager** icon in the Activity Bar (left sidebar)
+2. **Open the Panel** - Click the icon to open your todo management sidebar
+3. **Add Your First Todo** - Click the `+` button or use the welcome prompt
+
+### 📝 **Creating Todos**
+- **Quick Add**: Use the `+` button in the toolbar for instant todo creation
+- **Enhanced Creator**: Get guided 4-step creation with project assignment
+- **Command Palette**: `Ctrl/Cmd+Shift+P` → "Todo: Add Todo"
+
+### 🎪 **Navigating the Interface**
+- **Hierarchical View**: Tasks are automatically grouped by:
+  - 🔥 **Urgent Tasks** (high priority or due soon)
+  - 📋 **Active Tasks** (normal priority pending tasks)  
+  - 📁 **Projects** (when project names are assigned)
+  - ✅ **Completed Tasks** (finished todos)
+
+### 🔍 **Task Details & Management**
+- **Click Any Task** - Opens comprehensive detail view with:
+  - Full task information and metadata
+  - Quick action buttons (Complete, Edit, Delete, Set Reminder)
+  - Direct access to task log file
+  - Visual status and priority indicators
+
+### ⏰ **Smart Reminders**
+- **Natural Language**: Type "tomorrow at 2pm" or "next Friday"
+- **Quick Options**: Choose from contextual suggestions
+- **Smart Suggestions**: AI-powered time recommendations
+- **Rich Notifications**: Get actionable reminder popups
+
+### 📊 **Project Organization**
+- **Assign Projects**: Add project names during todo creation
+- **Auto-Grouping**: Tasks automatically group by project
+- **Project Overview**: See task counts and urgency indicators
+- **Cross-Project View**: Switch between project-focused and priority-focused views
+
+### 📝 **Task Logging**
+- **Automatic Logging**: All tasks are logged to `~/vscode-todo-tasks.txt`
+- **Structured Format**: Organized by date and project with proper indentation
+- **Quick Access**: Use "View Task Log" command or detail view button
+- **Historical Tracking**: Complete audit trail of all todo activities
 
 ## Installation & Setup
 

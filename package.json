@@ -71,6 +71,11 @@
         "title": "View Task Log File",
         "category": "Todo Manager",
         "icon": "$(file-text)"
+      },
+      {
+        "command": "todoManager.openTaskDetail",
+        "title": "Open Task Details",
+        "category": "Todo Manager"
       }
     ],
     "menus": {
@@ -95,22 +100,32 @@
         {
           "command": "todoManager.completeTodo",
           "when": "view == todoTreeView && viewItem == todoItem",
-          "group": "inline"
+          "group": "inline@1"
+        },
+        {
+          "command": "todoManager.openTaskDetail",
+          "when": "view == todoTreeView && viewItem == todoItem", 
+          "group": "inline@2"
         },
         {
           "command": "todoManager.editTodo",
           "when": "view == todoTreeView && viewItem == todoItem",
-          "group": "inline"
+          "group": "1_modify@1"
         },
         {
           "command": "todoManager.setReminder",
           "when": "view == todoTreeView && viewItem == todoItem",
-          "group": "inline"
+          "group": "1_modify@2"
         },
         {
           "command": "todoManager.deleteTodo",
           "when": "view == todoTreeView && viewItem == todoItem",
-          "group": "inline"
+          "group": "2_delete@1"
+        },
+        {
+          "command": "todoManager.viewTaskLog",
+          "when": "view == todoTreeView",
+          "group": "3_utils@1"
         }
       ]
     }
