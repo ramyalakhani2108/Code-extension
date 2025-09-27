@@ -783,6 +783,20 @@ export class TodoTreeDataProvider implements vscode.TreeDataProvider<TodoTreeIte
         }
     }
 
+    editTodoPriority(todoId: string, newPriority: 'high' | 'medium' | 'low'): void {
+        const todo = this.todos.find(t => t.id === todoId);
+        if (todo) {
+            todo.priority = newPriority;
+            this.saveTodos();
+            this.updateFilteredTodos();
+            this.refresh();
+        }
+    }
+
+    getTodoById(todoId: string): TodoItem | undefined {
+        return this.todos.find(t => t.id === todoId);
+    }
+
     setReminder(todoId: string, reminderDate: Date): void {
         const todo = this.todos.find(t => t.id === todoId);
         if (todo) {

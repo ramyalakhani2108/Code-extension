@@ -895,7 +895,7 @@ function generateTaskDetailHTML(todo: any): string {
 
 			<div class="actions">
 				${!todo.completed ? '<button class="btn btn-primary" onclick="completeTask()">✅ Mark Complete</button>' : '<button class="btn btn-secondary" onclick="completeTask()">↩️ Mark Incomplete</button>'}
-				<button class="btn btn-secondary" onclick="editTask()">✏️ Edit</button>
+				<button class="btn btn-secondary" onclick="editTask()">✏️ Edit Text & Priority</button>
 				<button class="btn btn-secondary" onclick="setReminder()">🔔 Set Reminder</button>
 				<button class="btn btn-danger" onclick="deleteTask()">🗑️ Delete</button>
 			</div>
@@ -955,6 +955,9 @@ function generateTaskDetailHTML(todo: any): string {
 		</html>
 	`;
 }
+
+// Global panel management for single tab functionality
+let activeTaskDetailPanels: Map<string, vscode.WebviewPanel> = new Map();
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -1044,9 +1047,10 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 		}),
 
-		// Edit Todo Command - Enhanced UX
+		// Edit Todo Command - Enhanced UX with Priority Editing
 		vscode.commands.registerCommand('todoManager.editTodo', async (item: TodoTreeItem) => {
 			if (item) {
+				// Step 1: Edit task text
 				const priorityEmoji = item.todo.priority === 'high' ? '🔴' : item.todo.priority === 'medium' ? '🟡' : '🟢';
 				
 				const newText = await vscode.window.showInputBox({
@@ -1065,21 +1069,86 @@ export function activate(context: vscode.ExtensionContext) {
 					}
 				});
 
-				if (newText && newText.trim() && newText.trim() !== item.todo.text) {
-					todoProvider.editTodo(item.todo.id, newText.trim());
-					vscode.window.showInformationMessage(
-						`✅ Todo updated: "${newText.trim()}"`,
-						'Edit Priority',
-						'Set Reminder'
-					).then(selection => {
-						if (selection === 'Edit Priority') {
-							// Future enhancement: Add priority editing
-							vscode.window.showInformationMessage('Priority editing coming soon!');
-						} else if (selection === 'Set Reminder') {
-							vscode.commands.executeCommand('todoManager.setReminder', item);
-						}
-					});
+				if (!newText || newText.trim() === '') {
+					return; // User cancelled
 				}
+
+				// Step 2: Edit priority if text changed or user wants to
+				const shouldEditPriority = newText.trim() !== item.todo.text;
+				let editPriorityChoice = false;
+
+				if (!shouldEditPriority) {
+					// If text didn't change, ask if they want to edit priority
+					const choice = await vscode.window.showQuickPick([
+						{ label: '✏️ Keep Current Priority', description: `${priorityEmoji} ${item.todo.priority}`, value: false },
+						{ label: '⚙️ Change Priority', description: 'Select new priority level', value: true }
+					], {
+						placeHolder: 'Text unchanged. Do you want to change priority?',
+						ignoreFocusOut: true
+					});
+					
+					if (!choice) return; // User cancelled
+					editPriorityChoice = choice.value;
+				} else {
+					// Text changed, offer to also change priority
+					const choice = await vscode.window.showQuickPick([
+						{ label: '💾 Save Text Only', description: `Keep ${priorityEmoji} ${item.todo.priority} priority`, value: false },
+						{ label: '⚙️ Also Change Priority', description: 'Update both text and priority', value: true }
+					], {
+						placeHolder: 'Also change priority level?',
+						ignoreFocusOut: true
+					});
+					
+					if (!choice) return; // User cancelled
+					editPriorityChoice = choice.value;
+				}
+
+				let newPriority = item.todo.priority;
+
+				// Step 3: Priority selection if requested
+				if (editPriorityChoice) {
+					const priorityOptions = [
+						{ label: '🔴 High Priority', description: 'Urgent and important tasks', value: 'high' },
+						{ label: '🟡 Medium Priority', description: 'Important but not urgent', value: 'medium' },
+						{ label: '🟢 Low Priority', description: 'Nice to have tasks', value: 'low' }
+					];
+
+					const priorityChoice = await vscode.window.showQuickPick(priorityOptions, {
+						placeHolder: `Current: ${priorityEmoji} ${item.todo.priority} - Select new priority`,
+						ignoreFocusOut: true
+					});
+
+					if (!priorityChoice) return; // User cancelled
+					newPriority = priorityChoice.value as 'high' | 'medium' | 'low';
+				}
+
+				// Apply changes
+				const textChanged = newText.trim() !== item.todo.text;
+				const priorityChanged = newPriority !== item.todo.priority;
+
+				if (textChanged) {
+					todoProvider.editTodo(item.todo.id, newText.trim());
+				}
+
+				if (priorityChanged) {
+					todoProvider.editTodoPriority(item.todo.id, newPriority);
+				}
+
+				// Show confirmation
+				if (textChanged && priorityChanged) {
+					const newPriorityEmoji = newPriority === 'high' ? '🔴' : newPriority === 'medium' ? '🟡' : '🟢';
+					vscode.window.showInformationMessage(
+						`✅ Updated task text and priority to ${newPriorityEmoji} ${newPriority}`
+					);
+				} else if (textChanged) {
+					vscode.window.showInformationMessage('✅ Task text updated successfully');
+				} else if (priorityChanged) {
+					const newPriorityEmoji = newPriority === 'high' ? '🔴' : newPriority === 'medium' ? '🟡' : '🟢';
+					vscode.window.showInformationMessage(
+						`✅ Priority changed to ${newPriorityEmoji} ${newPriority}`
+					);
+				}
+
 			}
 		}),
 
@@ -1228,10 +1297,24 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 		}),
 
-		// Task Detail View Command
+		// Task Detail View Command with Single Tab Management
 		vscode.commands.registerCommand('todoManager.openTaskDetail', async (todo: any) => {
 			try {
-				// Create a comprehensive task detail panel
+				const panelKey = `task-${todo.id}`;
+				
+				// Check if panel for this task already exists
+				if (activeTaskDetailPanels.has(panelKey)) {
+					const existingPanel = activeTaskDetailPanels.get(panelKey);
+					if (existingPanel) {
+						// Panel exists, just reveal it and update content
+						existingPanel.reveal(vscode.ViewColumn.Beside);
+						existingPanel.title = `📝 ${todo.text}`;
+						existingPanel.webview.html = generateTaskDetailHTML(todo);
+						return;
+					}
+				}
+
+				// Create a new comprehensive task detail panel
 				const panel = vscode.window.createWebviewPanel(
 					'taskDetail',
 					`📝 ${todo.text}`,
@@ -1242,6 +1325,14 @@ export function activate(context: vscode.ExtensionContext) {
 					}
 				);
 
+				// Store the panel reference
+				activeTaskDetailPanels.set(panelKey, panel);
+
+				// Handle panel disposal
+				panel.onDidDispose(() => {
+					activeTaskDetailPanels.delete(panelKey);
+				});
+
 				// Generate the task detail HTML
 				panel.webview.html = generateTaskDetailHTML(todo);
 
@@ -1250,19 +1341,25 @@ export function activate(context: vscode.ExtensionContext) {
 					switch (message.command) {
 						case 'complete':
 							todoProvider.completeTodo(todo.id);
-							panel.dispose();
+							// Update the panel content instead of closing
+							const updatedTodo = todoProvider.getTodoById(todo.id);
+							if (updatedTodo) {
+								panel.webview.html = generateTaskDetailHTML(updatedTodo);
+							} else {
+								panel.dispose(); // Todo was deleted
+							}
 							break;
 						case 'edit':
-							const newText = await vscode.window.showInputBox({
-								prompt: 'Edit task text',
-								value: todo.text,
-								placeHolder: 'Enter task description...'
-							});
-							if (newText) {
-								todoProvider.editTodo(todo.id, newText);
-								panel.title = `📝 ${newText}`;
-								panel.webview.html = generateTaskDetailHTML({...todo, text: newText});
-							}
+							// Use the enhanced edit functionality
+							vscode.commands.executeCommand('todoManager.editTodo', { todo: todo });
+							// Refresh panel content after edit
+							setTimeout(() => {
+								const updatedTodo = todoProvider.getTodoById(todo.id);
+								if (updatedTodo) {
+									panel.title = `📝 ${updatedTodo.text}`;
+									panel.webview.html = generateTaskDetailHTML(updatedTodo);
+								}
+							}, 500);
 							break;
 						case 'delete':
 							const confirm = await vscode.window.showWarningMessage(
@@ -1278,7 +1375,10 @@ export function activate(context: vscode.ExtensionContext) {
 							const reminderResult = await showSmartReminderPicker();
 							if (reminderResult) {
 								todoProvider.setReminder(todo.id, reminderResult);
-								panel.webview.html = generateTaskDetailHTML({...todo, reminder: reminderResult});
+								const updatedTodo = todoProvider.getTodoById(todo.id);
+								if (updatedTodo) {
+									panel.webview.html = generateTaskDetailHTML(updatedTodo);
+								}
 							}
 							break;
 						case 'openLog':
@@ -1360,4 +1460,12 @@ function checkOverdueTodos(todoProvider: TodoTreeDataProvider) {
 }
 
 // This method is called when your extension is deactivated
-export function deactivate() {}
+export function deactivate() {
+	// Clean up any active panels
+	activeTaskDetailPanels.forEach(panel => {
+		if (panel) {
+			panel.dispose();
+		}
+	});
+	activeTaskDetailPanels.clear();
+}
