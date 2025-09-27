@@ -270,9 +270,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Support
 
-- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/your-username/todo-task-reminder/issues)
-- 💡 **Feature Requests**: [GitHub Discussions](https://github.com/your-username/todo-task-reminder/discussions)
-- 📧 **Email**: your-email@example.com
+- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/your-ramyalakhani2108/Code-extension/issues)
+- 💡 **Feature Requests**: [GitHub Discussions](https://github.com/ramyalakhani2108/Code-extension/discussions)
+- 📧 **Email**: lakhani.ramya.u@gmail.com
 
 ## Acknowledgments
 
