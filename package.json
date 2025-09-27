@@ -109,6 +109,12 @@
         "command": "todoManager.filterOverdue",
         "title": "Show Overdue Tasks", 
         "category": "Todo Manager"
+      },
+      {
+        "command": "todoManager.bulkDelete",
+        "title": "Bulk Delete Tasks",
+        "category": "Todo Manager",
+        "icon": "$(trash)"
       }
     ],
     "menus": {
@@ -137,6 +143,11 @@
           "command": "todoManager.refreshTodos",
           "when": "view == todoTreeView",
           "group": "navigation@5"
+        },
+        {
+          "command": "todoManager.bulkDelete",
+          "when": "view == todoTreeView",
+          "group": "navigation@6"
         },
         {
           "command": "todoManager.viewTaskLog",

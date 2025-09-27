@@ -645,6 +645,170 @@ async function showEnhancedTodoCreator(): Promise<TodoCreatorResult | undefined>
 	};
 }
 
+// Complete task editor for all properties
+async function showCompleteTaskEditor(todo: any): Promise<any | undefined> {
+	// Step 1: Choose what to edit
+	const editOptions = [
+		{ label: '📝 Edit Task Text', description: `Current: "${todo.text}"`, value: 'text' },
+		{ label: '⭐ Edit Priority', description: `Current: ${todo.priority === 'high' ? '🔴' : todo.priority === 'medium' ? '🟡' : '🟢'} ${todo.priority}`, value: 'priority' },
+		{ label: '📁 Edit Project', description: `Current: ${todo.projectName || 'Other'}`, value: 'project' },
+		{ label: '📅 Edit Due Date', description: todo.dueDate ? `Current: ${new Date(todo.dueDate).toLocaleDateString()}` : 'No due date set', value: 'dueDate' },
+		{ label: '🔧 Edit All Properties', description: 'Comprehensive editing workflow', value: 'all' },
+		{ label: '❌ Cancel', description: 'No changes', value: 'cancel' }
+	];
+
+	const editChoice = await vscode.window.showQuickPick(editOptions, {
+		placeHolder: '✏️ What would you like to edit?',
+		ignoreFocusOut: true
+	});
+
+	if (!editChoice || editChoice.value === 'cancel') {
+		return undefined;
+	}
+
+	// Create result object with current values
+	const result = {
+		text: todo.text,
+		priority: todo.priority,
+		projectName: todo.projectName,
+		dueDate: todo.dueDate
+	};
+
+	// Handle specific property editing
+	if (editChoice.value === 'text' || editChoice.value === 'all') {
+		const newText = await vscode.window.showInputBox({
+			value: result.text,
+			prompt: '📝 Edit task description',
+			placeHolder: 'Enter task description...',
+			ignoreFocusOut: true,
+			validateInput: (value) => {
+				if (!value || value.trim().length === 0) {
+					return 'Task text cannot be empty';
+				}
+				if (value.trim().length > 200) {
+					return 'Task text is too long (max 200 characters)';
+				}
+				return null;
+			}
+		});
+		
+		if (newText === undefined) return undefined; // User cancelled
+		result.text = newText.trim();
+	}
+
+	if (editChoice.value === 'priority' || editChoice.value === 'all') {
+		const priorityOptions = [
+			{ label: '🔴 High Priority', description: 'Urgent and important tasks', value: 'high' },
+			{ label: '🟡 Medium Priority', description: 'Important but not urgent', value: 'medium' },
+			{ label: '🟢 Low Priority', description: 'Nice to have tasks', value: 'low' }
+		];
+
+		const priorityChoice = await vscode.window.showQuickPick(priorityOptions, {
+			placeHolder: `⭐ Select priority (Current: ${result.priority})`,
+			ignoreFocusOut: true
+		});
+
+		if (priorityChoice === undefined) return undefined; // User cancelled
+		result.priority = priorityChoice.value as 'high' | 'medium' | 'low';
+	}
+
+	if (editChoice.value === 'project' || editChoice.value === 'all') {
+		const newProject = await vscode.window.showInputBox({
+			value: result.projectName || '',
+			prompt: '📁 Edit project name (leave empty for "Other")',
+			placeHolder: 'Enter project name...',
+			ignoreFocusOut: true
+		});
+		
+		if (newProject === undefined) return undefined; // User cancelled
+		result.projectName = newProject.trim() || 'Other';
+	}
+
+	if (editChoice.value === 'dueDate' || editChoice.value === 'all') {
+		const dueDateChoice = await vscode.window.showQuickPick([
+			{ label: '📅 Set Due Date', description: 'Choose a specific date', value: 'set' },
+			{ label: '🗑️ Remove Due Date', description: 'Clear existing due date', value: 'remove' },
+			{ label: '⏭️ Skip', description: 'Keep current due date', value: 'skip' }
+		], {
+			placeHolder: '📅 Due date options',
+			ignoreFocusOut: true
+		});
+
+		if (dueDateChoice === undefined) return undefined; // User cancelled
+
+		if (dueDateChoice.value === 'set') {
+			const dateResult = await showAdvancedDateTimePicker();
+			if (dateResult === undefined) return undefined; // User cancelled
+			result.dueDate = dateResult;
+		} else if (dueDateChoice.value === 'remove') {
+			result.dueDate = undefined;
+		}
+		// 'skip' keeps the current value
+	}
+
+	return result;
+}
+
+// Task selector for bulk operations
+async function showTaskSelector(todos: any[], operation: string): Promise<any[]> {
+	if (todos.length === 0) return [];
+
+	// Create multi-select options
+	const taskOptions = todos.map(todo => ({
+		label: `${todo.completed ? '✅' : '⏳'} ${todo.text}`,
+		description: `${todo.priority === 'high' ? '🔴' : todo.priority === 'medium' ? '🟡' : '🟢'} ${todo.projectName || 'Other'}`,
+		picked: false,
+		task: todo
+	}));
+
+	const selectedOptions = await vscode.window.showQuickPick(taskOptions, {
+		placeHolder: `Select tasks to ${operation.toLowerCase()}`,
+		canPickMany: true,
+		ignoreFocusOut: true
+	});
+
+	return selectedOptions ? selectedOptions.map(option => option.task) : [];
+}
+
+// Select tasks by project
+async function selectTasksByProject(todos: any[]): Promise<any[]> {
+	const projects = new Set<string>();
+	todos.forEach(todo => projects.add(todo.projectName || 'Other'));
+	
+	const projectOptions = Array.from(projects).map(project => ({
+		label: `📁 ${project}`,
+		description: `${todos.filter(t => (t.projectName || 'Other') === project).length} tasks`,
+		value: project
+	}));
+
+	const selectedProject = await vscode.window.showQuickPick(projectOptions, {
+		placeHolder: 'Select project to delete all tasks from',
+		ignoreFocusOut: true
+	});
+
+	if (!selectedProject) return [];
+	
+	return todos.filter(todo => (todo.projectName || 'Other') === selectedProject.value);
+}
+
+// Select tasks by priority
+async function selectTasksByPriority(todos: any[]): Promise<any[]> {
+	const priorityOptions = [
+		{ label: '🔴 High Priority', description: `${todos.filter(t => t.priority === 'high').length} tasks`, value: 'high' },
+		{ label: '🟡 Medium Priority', description: `${todos.filter(t => t.priority === 'medium').length} tasks`, value: 'medium' },
+		{ label: '🟢 Low Priority', description: `${todos.filter(t => t.priority === 'low').length} tasks`, value: 'low' }
+	];
+
+	const selectedPriority = await vscode.window.showQuickPick(priorityOptions, {
+		placeHolder: 'Select priority level to delete all tasks from',
+		ignoreFocusOut: true
+	});
+
+	if (!selectedPriority) return [];
+	
+	return todos.filter(todo => todo.priority === selectedPriority.value);
+}
+
 // Custom filter builder for advanced filtering
 async function showCustomFilterBuilder(todoProvider: any): Promise<void> {
 	const customFilter: any = {};
@@ -1047,108 +1211,24 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 		}),
 
-		// Edit Todo Command - Enhanced UX with Priority Editing
+		// Edit Todo Command - Complete Task Property Editing
 		vscode.commands.registerCommand('todoManager.editTodo', async (item: TodoTreeItem) => {
 			if (item) {
-				// Step 1: Edit task text
-				const priorityEmoji = item.todo.priority === 'high' ? '🔴' : item.todo.priority === 'medium' ? '🟡' : '🟢';
-				
-				const newText = await vscode.window.showInputBox({
-					value: item.todo.text,
-					prompt: `✏️ Edit ${priorityEmoji} ${item.todo.priority} priority todo`,
-					placeHolder: 'Update your todo description...',
-					ignoreFocusOut: true,
-					validateInput: (value) => {
-						if (!value || value.trim().length === 0) {
-							return 'Todo text cannot be empty';
-						}
-						if (value.trim().length > 200) {
-							return 'Todo text is too long (max 200 characters)';
-						}
-						return null;
-					}
-				});
-
-				if (!newText || newText.trim() === '') {
-					return; // User cancelled
-				}
-
-				// Step 2: Edit priority if text changed or user wants to
-				const shouldEditPriority = newText.trim() !== item.todo.text;
-				let editPriorityChoice = false;
-
-				if (!shouldEditPriority) {
-					// If text didn't change, ask if they want to edit priority
-					const choice = await vscode.window.showQuickPick([
-						{ label: '✏️ Keep Current Priority', description: `${priorityEmoji} ${item.todo.priority}`, value: false },
-						{ label: '⚙️ Change Priority', description: 'Select new priority level', value: true }
-					], {
-						placeHolder: 'Text unchanged. Do you want to change priority?',
-						ignoreFocusOut: true
-					});
+				const result = await showCompleteTaskEditor(item.todo);
+				if (result) {
+					// Apply all changes
+					todoProvider.updateTodo(item.todo.id, result);
 					
-					if (!choice) return; // User cancelled
-					editPriorityChoice = choice.value;
-				} else {
-					// Text changed, offer to also change priority
-					const choice = await vscode.window.showQuickPick([
-						{ label: '💾 Save Text Only', description: `Keep ${priorityEmoji} ${item.todo.priority} priority`, value: false },
-						{ label: '⚙️ Also Change Priority', description: 'Update both text and priority', value: true }
-					], {
-						placeHolder: 'Also change priority level?',
-						ignoreFocusOut: true
-					});
+					// Show confirmation
+					const changes = [];
+					if (result.text !== item.todo.text) changes.push('text');
+					if (result.priority !== item.todo.priority) changes.push('priority');
+					if (result.projectName !== item.todo.projectName) changes.push('project');
+					if (result.dueDate?.getTime() !== item.todo.dueDate?.getTime()) changes.push('due date');
 					
-					if (!choice) return; // User cancelled
-					editPriorityChoice = choice.value;
+					const changesList = changes.length > 0 ? changes.join(', ') : 'properties';
+					vscode.window.showInformationMessage(`✅ Updated task ${changesList}`);
 				}
-
-				let newPriority = item.todo.priority;
-
-				// Step 3: Priority selection if requested
-				if (editPriorityChoice) {
-					const priorityOptions = [
-						{ label: '🔴 High Priority', description: 'Urgent and important tasks', value: 'high' },
-						{ label: '🟡 Medium Priority', description: 'Important but not urgent', value: 'medium' },
-						{ label: '🟢 Low Priority', description: 'Nice to have tasks', value: 'low' }
-					];
-
-					const priorityChoice = await vscode.window.showQuickPick(priorityOptions, {
-						placeHolder: `Current: ${priorityEmoji} ${item.todo.priority} - Select new priority`,
-						ignoreFocusOut: true
-					});
-
-					if (!priorityChoice) return; // User cancelled
-					newPriority = priorityChoice.value as 'high' | 'medium' | 'low';
-				}
-
-				// Apply changes
-				const textChanged = newText.trim() !== item.todo.text;
-				const priorityChanged = newPriority !== item.todo.priority;
-
-				if (textChanged) {
-					todoProvider.editTodo(item.todo.id, newText.trim());
-				}
-
-				if (priorityChanged) {
-					todoProvider.editTodoPriority(item.todo.id, newPriority);
-				}
-
-				// Show confirmation
-				if (textChanged && priorityChanged) {
-					const newPriorityEmoji = newPriority === 'high' ? '🔴' : newPriority === 'medium' ? '🟡' : '🟢';
-					vscode.window.showInformationMessage(
-						`✅ Updated task text and priority to ${newPriorityEmoji} ${newPriority}`
-					);
-				} else if (textChanged) {
-					vscode.window.showInformationMessage('✅ Task text updated successfully');
-				} else if (priorityChanged) {
-					const newPriorityEmoji = newPriority === 'high' ? '🔴' : newPriority === 'medium' ? '🟡' : '🟢';
-					vscode.window.showInformationMessage(
-						`✅ Priority changed to ${newPriorityEmoji} ${newPriority}`
-					);
-				}
-
 			}
 		}),
 
@@ -1237,6 +1317,79 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.commands.registerCommand('todoManager.clearFilters', () => {
 			todoProvider.setFilter({ dateRange: 'all' });
 			vscode.window.showInformationMessage('🔄 All filters cleared');
+		}),
+
+		// Bulk Delete Command
+		vscode.commands.registerCommand('todoManager.bulkDelete', async () => {
+			const allTodos = todoProvider.getAllTodos();
+			if (allTodos.length === 0) {
+				vscode.window.showInformationMessage('📭 No tasks to delete');
+				return;
+			}
+
+			// Step 1: Choose deletion scope
+			const scopeOptions = [
+				{ label: '🗑️ Delete Selected Tasks', description: 'Choose specific tasks to delete', value: 'selected' },
+				{ label: '✅ Delete All Completed', description: `Delete ${allTodos.filter((t: any) => t.completed).length} completed tasks`, value: 'completed' },
+				{ label: '⚠️ Delete All Overdue', description: `Delete ${allTodos.filter((t: any) => t.dueDate && t.dueDate < new Date() && !t.completed).length} overdue tasks`, value: 'overdue' },
+				{ label: '📁 Delete by Project', description: 'Delete all tasks from a project', value: 'project' },
+				{ label: '⭐ Delete by Priority', description: 'Delete all tasks of specific priority', value: 'priority' },
+				{ label: '🗑️ Delete All Tasks', description: '⚠️ DELETE EVERYTHING', value: 'all' }
+			];
+
+			const scopeChoice = await vscode.window.showQuickPick(scopeOptions, {
+				placeHolder: '🗑️ Choose deletion scope',
+				ignoreFocusOut: true
+			});
+
+			if (!scopeChoice) return;
+
+			let tasksToDelete: any[] = [];
+
+			switch (scopeChoice.value) {
+				case 'selected':
+					tasksToDelete = await showTaskSelector(allTodos, 'Delete');
+					break;
+				case 'completed':
+					tasksToDelete = allTodos.filter(t => t.completed);
+					break;
+				case 'overdue':
+					tasksToDelete = allTodos.filter(t => t.dueDate && t.dueDate < new Date() && !t.completed);
+					break;
+				case 'project':
+					tasksToDelete = await selectTasksByProject(allTodos);
+					break;
+				case 'priority':
+					tasksToDelete = await selectTasksByPriority(allTodos);
+					break;
+				case 'all':
+					tasksToDelete = allTodos;
+					break;
+			}
+
+			if (!tasksToDelete || tasksToDelete.length === 0) {
+				vscode.window.showInformationMessage('📭 No tasks selected for deletion');
+				return;
+			}
+
+			// Step 2: Confirmation
+			const confirmMessage = `⚠️ Delete ${tasksToDelete.length} task${tasksToDelete.length > 1 ? 's' : ''}?`;
+			const confirmOptions = ['Delete', 'Cancel'];
+			
+			const confirm = await vscode.window.showWarningMessage(
+				confirmMessage,
+				{ modal: true },
+				...confirmOptions
+			);
+
+			if (confirm === 'Delete') {
+				// Perform bulk deletion
+				todoProvider.bulkDeleteTodos(tasksToDelete.map(t => t.id));
+				
+				vscode.window.showInformationMessage(
+					`🗑️ Successfully deleted ${tasksToDelete.length} task${tasksToDelete.length > 1 ? 's' : ''}`
+				);
+			}
 		}),
 
 		// Quick Filter Commands

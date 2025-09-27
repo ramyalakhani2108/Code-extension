@@ -797,6 +797,34 @@ export class TodoTreeDataProvider implements vscode.TreeDataProvider<TodoTreeIte
         return this.todos.find(t => t.id === todoId);
     }
 
+    updateTodo(todoId: string, updates: Partial<TodoItem>): void {
+        const todo = this.todos.find(t => t.id === todoId);
+        if (todo) {
+            // Update properties
+            if (updates.text !== undefined) todo.text = updates.text;
+            if (updates.priority !== undefined) todo.priority = updates.priority;
+            if (updates.projectName !== undefined) todo.projectName = updates.projectName;
+            if (updates.dueDate !== undefined) todo.dueDate = updates.dueDate;
+            if (updates.completed !== undefined) todo.completed = updates.completed;
+            if (updates.reminder !== undefined) todo.reminder = updates.reminder;
+            
+            this.saveTodos();
+            this.updateFilteredTodos();
+            this.refresh();
+        }
+    }
+
+    getAllTodos(): TodoItem[] {
+        return [...this.todos];
+    }
+
+    bulkDeleteTodos(todoIds: string[]): void {
+        this.todos = this.todos.filter(todo => !todoIds.includes(todo.id));
+        this.saveTodos();
+        this.updateFilteredTodos();
+        this.refresh();
+    }
+
     setReminder(todoId: string, reminderDate: Date): void {
         const todo = this.todos.find(t => t.id === todoId);
         if (todo) {
