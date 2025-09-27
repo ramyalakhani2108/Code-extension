@@ -65,6 +65,12 @@
         "command": "todoManager.openPanel",
         "title": "Open Todo Panel",
         "category": "Todo Manager"
+      },
+      {
+        "command": "todoManager.viewTaskLog",
+        "title": "View Task Log File",
+        "category": "Todo Manager",
+        "icon": "$(file-text)"
       }
     ],
     "menus": {
@@ -76,6 +82,11 @@
         },
         {
           "command": "todoManager.refreshTodos",
+          "when": "view == todoTreeView",
+          "group": "navigation"
+        },
+        {
+          "command": "todoManager.viewTaskLog",
           "when": "view == todoTreeView",
           "group": "navigation"
         }
