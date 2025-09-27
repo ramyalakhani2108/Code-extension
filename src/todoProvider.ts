@@ -24,7 +24,7 @@ export class TodoTreeItem extends vscode.TreeItem {
         this.contextValue = this.getContextValue();
         this.iconPath = this.getIcon();
         
-        // Add click command to open task details
+        // Add click command to open task details when clicking on task name
         if (itemType === 'todo') {
             this.command = {
                 command: 'todoManager.openTaskDetail',
@@ -238,7 +238,7 @@ export class TodoTreeDataProvider implements vscode.TreeDataProvider<TodoTreeIte
         // Apply project filter
         if (this.currentFilter.projects && this.currentFilter.projects.length > 0) {
             filtered = filtered.filter(todo => {
-                const projectName = todo.projectName || 'No Project';
+                const projectName = todo.projectName || 'Other';
                 return this.currentFilter.projects!.includes(projectName);
             });
         }
@@ -313,7 +313,7 @@ export class TodoTreeDataProvider implements vscode.TreeDataProvider<TodoTreeIte
             if (todo.projectName) {
                 projects.add(todo.projectName);
             } else {
-                projects.add('No Project');
+                projects.add('Other');
             }
         });
         return Array.from(projects).sort();
@@ -484,7 +484,7 @@ export class TodoTreeDataProvider implements vscode.TreeDataProvider<TodoTreeIte
     }
 
     private getProjectGroupKey(todo: TodoItem): string {
-        return todo.projectName ? `📁 ${todo.projectName}` : '📝 No Project';
+        return todo.projectName ? `📁 ${todo.projectName}` : '� Other';
     }
 
     private getDateGroupKey(todo: TodoItem): string {
@@ -746,7 +746,7 @@ export class TodoTreeDataProvider implements vscode.TreeDataProvider<TodoTreeIte
             createdAt: new Date(),
             dueDate,
             priority,
-            projectName
+            projectName: projectName || 'Other' // Assign 'Other' if no project specified
         };
 
         this.todos.push(newTodo);
@@ -827,7 +827,8 @@ export class TodoTreeDataProvider implements vscode.TreeDataProvider<TodoTreeIte
             ...todo,
             createdAt: new Date(todo.createdAt),
             dueDate: todo.dueDate ? new Date(todo.dueDate) : undefined,
-            reminder: todo.reminder ? new Date(todo.reminder) : undefined
+            reminder: todo.reminder ? new Date(todo.reminder) : undefined,
+            projectName: todo.projectName || 'Other' // Assign 'Other' to existing todos without projects
         }));
 
         // Load saved grouping and filter settings
@@ -850,21 +851,24 @@ export class TodoTreeDataProvider implements vscode.TreeDataProvider<TodoTreeIte
                     text: 'Welcome to Todo Task Reminder! 🎉',
                     completed: false,
                     createdAt: new Date(),
-                    priority: 'high'
+                    priority: 'high',
+                    projectName: 'Other'
                 },
                 {
                     id: 'sample-2',
                     text: 'Click the + button to add your own todos',
                     completed: false,
                     createdAt: new Date(),
-                    priority: 'medium'
+                    priority: 'medium',
+                    projectName: 'Other'
                 },
                 {
                     id: 'sample-3',
                     text: 'Right-click todos for more options',
                     completed: true,
                     createdAt: new Date(),
-                    priority: 'low'
+                    priority: 'low',
+                    projectName: 'Other'
                 }
             ];
             this.todos = sampleTodos;
@@ -923,7 +927,7 @@ export class TodoTreeDataProvider implements vscode.TreeDataProvider<TodoTreeIte
     private insertTaskIntoLog(content: string, todo: TodoItem, dateStr: string): string {
         const lines = content.split('\n');
         const dateHeader = `${dateStr}'s tasks:`;
-        const projectHeader = todo.projectName ? `#${todo.projectName}` : '#General';
+        const projectHeader = todo.projectName ? `#${todo.projectName}` : '#Other';
         const taskLine = `- ${todo.text}`;
         
         // Find or create date section

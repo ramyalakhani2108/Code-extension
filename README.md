@@ -76,11 +76,14 @@ A powerful VS Code extension that helps you manage todos and set task reminders 
   - ✅ **Completed Tasks** (finished todos)
 
 ### 🔍 **Task Details & Management**
-- **Click Any Task** - Opens comprehensive detail view with:
-  - Full task information and metadata
-  - Quick action buttons (Complete, Edit, Delete, Set Reminder)
-  - Direct access to task log file
-  - Visual status and priority indicators
+- **Click Task Name** - Opens comprehensive detail view with full task information and metadata
+- **Inline Action Buttons** - Quick access to common operations:
+  - ✅ **Complete/Incomplete** - Toggle task completion status
+  - ✏️ **Edit** - Modify task text and details
+  - 🔔 **Set Reminder** - Add or update task reminders
+  - 🗑️ **Delete** - Remove task with confirmation
+- **Right-Click Context Menu** - Additional options and quick filters
+- **Visual Status Indicators** - Priority colors, completion status, and urgency badges
 
 ### ⏰ **Smart Reminders**
 - **Natural Language**: Type "tomorrow at 2pm" or "next Friday"
