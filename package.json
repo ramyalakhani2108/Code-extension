@@ -2,7 +2,7 @@
   "name": "todo-task-reminder-pro",
   "displayName": "Todo Task Reminder Pro",
   "description": "Professional todo management with GitLens-style sidebar, advanced filtering, bulk operations, and task logging",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "publisher": "ramya-lakhani",
   "icon": "icon.png",
   "engines": {
@@ -18,7 +18,10 @@
     "productivity",
     "sidebar",
     "management",
-    "organization"
+    "organization",
+    "filtering",
+    "bulk",
+    "log"
   ],
   "license": "MIT",
   "repository": {
